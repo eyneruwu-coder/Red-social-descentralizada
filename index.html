@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Red Permanente Descentralizada 🌐</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="contenedor">
+    <header>
+      <h1>🌍 Red Sin Centro — Permanente</h1>
+      <p id="estado">🔄 Conectando...</p>
+      <p id="mi-id" class="id"></p>
+    </header>
+
+    <section class="identidad">
+      <label>Tu nombre: <input type="text" id="nombre-usuario" placeholder="Escribe tu nombre"></label>
+    </section>
+
+    <section class="publicar">
+      <textarea id="texto-publicacion" placeholder="¿Qué compartes? Se guardará permanentemente..."></textarea>
+      <button id="btn-publicar">📤 Publicar a la red</button>
+    </section>
+
+    <section class="publicaciones">
+      <h2>📢 Publicaciones</h2>
+      <button id="btn-recargar">🔄 Buscar novedades</button>
+      <div id="lista-publicaciones"></div>
+    </section>
+  </div>
+
+  <!-- IPFS + Libp2p -->
+  <script src="https://cdn.jsdelivr.net/npm/kubo-rpc-client@3.0.1/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/libp2p@0.46.0/dist/index.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
