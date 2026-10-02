@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CODEC 🌐</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Iconos -->
+  <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
 
-  <!-- Carga -->
   <div id="pantalla-carga">
     <div class="cargando">
       <h1>CODEC</h1>
@@ -19,17 +17,14 @@
     </div>
   </div>
 
-  <!-- Contenido Principal -->
   <div class="app" id="app" style="display: none;">
 
-    <!-- Sección Inicio / Publicaciones -->
     <section class="pagina activa" id="pagina-inicio">
       <header class="cabecera">
         <h1>CODEC</h1>
         <p class="subtitulo">Red descentralizada</p>
       </header>
 
-      <!-- Formulario Publicar -->
       <div class="tarjeta publicar-form">
         <div class="foto-perfil-mini" id="foto-preview-mini"></div>
         <textarea id="nuevo-texto" placeholder="¿Qué estás pensando?"></textarea>
@@ -43,11 +38,9 @@
         <div id="vista-previa-archivo" class="vista-previa"></div>
       </div>
 
-      <!-- Muro de Publicaciones -->
       <div id="muro" class="muro"></div>
     </section>
 
-    <!-- Sección Chat -->
     <section class="pagina" id="pagina-chat">
       <header class="cabecera">
         <button class="btn-volver" id="volver-chats"><i class="fa-solid fa-arrow-left"></i></button>
@@ -63,13 +56,11 @@
       </div>
     </section>
 
-    <!-- Sección Usuarios / Perfil -->
     <section class="pagina" id="pagina-usuarios">
       <header class="cabecera">
         <h2>Comunidad</h2>
       </header>
 
-      <!-- Mi Perfil -->
       <div class="tarjeta mi-perfil">
         <h3>Mi Perfil</h3>
         <div class="form-perfil">
@@ -86,14 +77,12 @@
         </div>
       </div>
 
-      <!-- Lista de Usuarios -->
       <h3 class="titulo-seccion">Usuarios Activos</h3>
       <div id="lista-usuarios" class="lista-usuarios"></div>
     </section>
 
   </div>
 
-  <!-- Menú Inferior -->
   <nav class="menu-inferior">
     <button class="item-menu activo" data-pagina="inicio">
       <i class="fa-solid fa-house"></i>
@@ -108,9 +97,8 @@
     <div class="centro-menu">CODEC</div>
   </nav>
 
-  <!-- Librerías: IPFS + OrbitDB -->
   <script src="https://cdn.jsdelivr.net/npm/kubo-rpc-client@3.0.1/dist/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/orbit-db@10.0.0/dist/orbitdb.min.js"></script>
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
