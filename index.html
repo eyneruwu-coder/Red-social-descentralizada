@@ -3,36 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Red Permanente Descentralizada 🌐</title>
+  <title>CODEC 🌐</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 </head>
 <body>
-  <div class="contenedor">
-    <header>
-      <h1>🌍 Red Sin Centro — Permanente</h1>
-      <p id="estado">🔄 Conectando...</p>
-      <p id="mi-id" class="id"></p>
-    </header>
 
-    <section class="identidad">
-      <label>Tu nombre: <input type="text" id="nombre-usuario" placeholder="Escribe tu nombre"></label>
-    </section>
-
-    <section class="publicar">
-      <textarea id="texto-publicacion" placeholder="¿Qué compartes? Se guardará permanentemente..."></textarea>
-      <button id="btn-publicar">📤 Publicar a la red</button>
-    </section>
-
-    <section class="publicaciones">
-      <h2>📢 Publicaciones</h2>
-      <button id="btn-recargar">🔄 Buscar novedades</button>
-      <div id="lista-publicaciones"></div>
-    </section>
+  <!-- Carga -->
+  <div id="pantalla-carga">
+    <div class="cargando">
+      <h1>CODEC</h1>
+      <p>Conectando a la red descentralizada...</p>
+      <div class="puntos"></div>
+    </div>
   </div>
 
-  <!-- IPFS + Libp2p -->
+  <!-- Contenido Principal -->
+  <div class="app" id="app" style="display: none;">
+
+    <!-- Sección Inicio / Publicaciones -->
+    <section class="pagina activa" id="pagina-inicio">
+      <header class="cabecera">
+        <h1>CODEC</h1>
+        <p class="subtitulo">Red descentralizada</p>
+      </header>
+
+      <!-- Formulario Publicar -->
+      <div class="tarjeta publicar-form">
+        <div class="foto-perfil-mini" id="foto-preview-mini"></div>
+        <textarea id="nuevo-texto" placeholder="¿Qué estás pensando?"></textarea>
+        <div class="acciones-publicar">
+          <label class="boton-archivo">
+            <i class="fa-solid fa-image"></i> Imagen/Video
+            <input type="file" id="archivo-entrada" accept="image/*,video/*">
+          </label>
+          <button id="btn-publicar" class="btn-principal">Publicar</button>
+        </div>
+        <div id="vista-previa-archivo" class="vista-previa"></div>
+      </div>
+
+      <!-- Muro de Publicaciones -->
+      <div id="muro" class="muro"></div>
+    </section>
+
+    <!-- Sección Chat -->
+    <section class="pagina" id="pagina-chat">
+      <header class="cabecera">
+        <button class="btn-volver" id="volver-chats"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2 id="titulo-chat">Mensajes</h2>
+      </header>
+      <div id="lista-chats" class="lista-conversaciones"></div>
+      <div id="ventana-chat" class="ventana-chat" style="display: none;">
+        <div id="mensajes-chat" class="caja-mensajes"></div>
+        <div class="enviar-mensaje">
+          <input type="text" id="input-mensaje" placeholder="Escribe un mensaje...">
+          <button id="btn-enviar"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Usuarios / Perfil -->
+    <section class="pagina" id="pagina-usuarios">
+      <header class="cabecera">
+        <h2>Comunidad</h2>
+      </header>
+
+      <!-- Mi Perfil -->
+      <div class="tarjeta mi-perfil">
+        <h3>Mi Perfil</h3>
+        <div class="form-perfil">
+          <div class="foto-grande">
+            <div class="foto-perfil" id="mi-foto-grande"></div>
+            <label class="cambiar-foto">
+              <i class="fa-solid fa-camera"></i>
+              <input type="file" id="foto-perfil-entrada" accept="image/*">
+            </label>
+          </div>
+          <input type="text" id="input-nombre" placeholder="Nombre">
+          <input type="text" id="input-apellido" placeholder="Apellido">
+          <button id="btn-guardar-perfil" class="btn-principal">Guardar Perfil</button>
+        </div>
+      </div>
+
+      <!-- Lista de Usuarios -->
+      <h3 class="titulo-seccion">Usuarios Activos</h3>
+      <div id="lista-usuarios" class="lista-usuarios"></div>
+    </section>
+
+  </div>
+
+  <!-- Menú Inferior -->
+  <nav class="menu-inferior">
+    <button class="item-menu activo" data-pagina="inicio">
+      <i class="fa-solid fa-house"></i>
+    </button>
+    <button class="item-menu" data-pagina="chat">
+      <i class="fa-solid fa-comment"></i>
+      <span class="contador" id="contador-mensajes">0</span>
+    </button>
+    <button class="item-menu" data-pagina="usuarios">
+      <i class="fa-solid fa-users"></i>
+    </button>
+    <div class="centro-menu">CODEC</div>
+  </nav>
+
+  <!-- Librerías: IPFS + OrbitDB -->
   <script src="https://cdn.jsdelivr.net/npm/kubo-rpc-client@3.0.1/dist/index.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/libp2p@0.46.0/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/orbit-db@10.0.0/dist/orbitdb.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
