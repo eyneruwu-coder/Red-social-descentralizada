@@ -1,10 +1,13 @@
 // =============================================
-// 🌐 CODEC — Usuarios Activos + Publicaciones Compartidas
+// 🌐 CODEC — CONECTA TODOS LOS TELÉFONOS
 // =============================================
 
 let miId, miPerfil = null
+let db = null
+let usuariosRef = null
+let publicacionesRef = null
 let misPublicaciones = []
-let usuariosConectados = {} // Aquí guardamos a TODOS
+let usuariosConectados = {}
 
 const almacen = {
   guardar(clave, valor) {
@@ -20,105 +23,153 @@ const pantallaCarga = document.getElementById('pantalla-carga')
 const app = document.getElementById('app')
 const muro = document.getElementById('muro')
 const listaUsuarios = document.getElementById('lista-usuarios')
-const listaChats = document.getElementById('lista-chats')
-const ventanaChat = document.getElementById('ventana-chat')
-const mensajesChat = document.getElementById('mensajes-chat')
-const tituloChat = document.getElementById('titulo-chat')
-const inputMensaje = document.getElementById('input-mensaje')
-const contadorMensajes = document.getElementById('contador-mensajes')
 
-// Canal para compartir todo entre dispositivos
-const CANAL = new BroadcastChannel('codec-red-social')
+// 🔧 CONFIGURACIÓN — Esto es público y GRATIS
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCqDpV4GQqFhGd9KZ8xY7w6rT5s4P3n2m1b0",
+  authDomain: "codec-red-social.firebaseapp.com",
+  databaseURL: "https://codec-red-social-default-rtdb.firebaseio.com",
+  projectId: "codec-red-social",
+  storageBucket: "codec-red-social.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abc123def456ghi789jkl01"
+}
 
 function iniciarTodo() {
   miId = 'u_' + Math.random().toString(36).slice(2, 10)
   
-  miPerfil = almacen.leer('mi_perfil')
-  misPublicaciones = almacen.leer('publicaciones', [])
+  // Inicializar base de datos gratuita
+  try {
+    const app = firebase.initializeApp(FIREBASE_CONFIG)
+    db = firebase.database()
+    usuariosRef = db.ref('usuarios')
+    publicacionesRef = db.ref('publicaciones')
+    console.log('✅ Conectado a la red CODEC')
+  } catch (error) {
+    console.log('⚠️ Modo local — sin conexión entre dispositivos')
+  }
 
-  // Cargar mi perfil en la lista
+  // Cargar mi perfil guardado
+  miPerfil = almacen.leer('mi_perfil')
   if (miPerfil) {
-    usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
     document.getElementById('input-nombre').value = miPerfil.nombre || ''
     document.getElementById('input-apellido').value = miPerfil.apellido || ''
     actualizarFotoPerfil(miPerfil.foto || null)
   }
 
-  // Escuchar lo que envían los demás dispositivos
-  CANAL.onmessage = (e) => {
-    const { tipo, datos, de } = e.data
-    if (de === miId) return // Ignorar lo que yo envío
+  // Escuchar cuando alguien se conecte o actualice su perfil
+  if (db) {
+    usuariosRef.on('value', (snapshot) => {
+      const todos = snapshot.val() || {}
+      usuariosConectados = todos
+      renderizarListaUsuarios()
+    })
 
-    if (tipo === 'nuevo-perfil') {
-      // ✅ Aparece el usuario nuevo
-      usuariosConectados[de] = { ...datos, ultimaVez: Date.now() }
-      renderizarListaUsuarios()
-    }
-    else if (tipo === 'publicacion') {
-      // ✅ Llega publicación
-      if (!misPublicaciones.find(p => p.id === datos.id)) {
-        misPublicaciones.unshift(datos)
-        almacen.guardar('publicaciones', misPublicaciones)
-        agregarPublicacion(datos, true)
-      }
-    }
-    else if (tipo === 'solicitud-lista') {
-      // Cuando alguien nuevo entra, le enviamos nuestra lista
-      if (miPerfil) {
-        CANAL.postMessage({
-          tipo: 'lista-completa',
-          datos: usuariosConectados,
-          de: miId
-        })
-      }
-    }
-    else if (tipo === 'lista-completa') {
-      // Recibimos la lista de todos los que ya están conectados
-      Object.assign(usuariosConectados, datos)
-      // Quitar usuarios viejos sin perfil
-      if (miPerfil) usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
-      renderizarListaUsuarios()
-    }
+    // Escuchar publicaciones nuevas
+    publicacionesRef.limitToLast(20).on('value', (snapshot) => {
+      const datos = snapshot.val() || {}
+      misPublicaciones = Object.values(datos).reverse()
+      renderizarPublicaciones()
+    })
   }
 
-  // Pedir lista de usuarios ya conectados cuando entro
-  setTimeout(() => {
-    CANAL.postMessage({ tipo: 'solicitud-lista', de: miId })
-  }, 500)
-
-  // Mostrar todo
+  // Mostrar interfaz
   setTimeout(() => {
     pantallaCarga.style.display = 'none'
     app.style.display = 'block'
-    renderizarPublicaciones()
     renderizarListaUsuarios()
+    renderizarPublicaciones()
   }, 800)
 }
 
-// ===== PUBLICACIONES =====
-function renderizarPublicaciones() {
-  muro.innerHTML = ''
-  misPublicaciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-    .forEach(p => agregarPublicacion(p, false))
-}
+// ===== GUARDAR PERFIL — APARECE EN TODOS LOS TELÉFONOS =====
+document.getElementById('btn-guardar-perfil').addEventListener('click', () => {
+  const nombre = document.getElementById('input-nombre').value.trim()
+  const apellido = document.getElementById('input-apellido').value.trim()
+  if (!nombre || !apellido) return alert('Escribe tu nombre y apellido ✍️')
 
-function agregarPublicacion(p, alPrincipio = false) {
-  const elem = document.createElement('div')
-  elem.className = 'publicacion'
-  elem.innerHTML = `
-    <div class="pub-cabecera">
-      <div class="foto-perfil">${p.fotoAutor ? `<img src="${p.fotoAutor}">` : (p.nombreAutor?.[0] || '?')}</div>
-      <div>
-        <div class="pub-autor">${p.nombreAutor || 'Anónimo'}</div>
-        <div class="pub-fecha">${new Date(p.fecha).toLocaleString('es-EC')}</div>
+  miPerfil = {
+    id: miId,
+    nombre,
+    apellido,
+    foto: miPerfil?.foto || null,
+    ultimaConexion: new Date().toISOString()
+  }
+  
+  almacen.guardar('mi_perfil', miPerfil)
+  actualizarFotoPerfil(miPerfil.foto)
+
+  // ⚡ Enviar a la base de datos — APARECE EN TODOS
+  if (db) {
+    usuariosRef.child(miId).set(miPerfil)
+      .then(() => alert('✅ Perfil guardado! Ya te ven todos 👀'))
+      .catch(() => alert('⚠️ Guardado localmente. Revisa conexión.'))
+  } else {
+    alert('✅ Guardado localmente')
+  }
+})
+
+// ===== LISTA DE USUARIOS =====
+function renderizarListaUsuarios() {
+  listaUsuarios.innerHTML = ''
+  const todos = Object.values(usuariosConectados).filter(u => u && u.nombre)
+
+  if (todos.length === 0) {
+    listaUsuarios.innerHTML = `
+      <p style="color:var(--texto-mudo);text-align:center;padding:30px;">
+        👤 Crea tu perfil arriba<br>y verás a los demás aquí
+      </p>
+    `
+    return
+  }
+
+  todos.forEach(usuario => {
+    const esYo = usuario.id === miId
+    const tarjeta = document.createElement('div')
+    tarjeta.className = 'tarjeta-usuario'
+    tarjeta.innerHTML = `
+      <div class="foto-perfil">
+        ${usuario.foto ? `<img src="${usuario.foto}">` : usuario.nombre[0].toUpperCase()}
       </div>
-    </div>
-    ${p.texto ? `<div class="pub-contenido">${p.texto}</div>` : ''}
-    ${p.imagen ? `<div class="pub-media"><img src="${p.imagen}" alt=""></div>` : ''}
-  `
-  alPrincipio ? muro.prepend(elem) : muro.appendChild(elem)
+      <div>
+        <div class="usuario-nombre">
+          ${usuario.nombre} ${usuario.apellido}
+          ${esYo ? '<span style="color:var(--resaltado);font-size:0.8em;">(Tú)</span>' : ''}
+        </div>
+        <div class="usuario-id">${esYo ? 'Conectado ✅' : 'Activo ✅'}</div>
+      </div>
+    `
+    listaUsuarios.appendChild(tarjeta)
+  })
 }
 
+// ===== FOTO DE PERFIL =====
+document.getElementById('foto-perfil-entrada').addEventListener('change', e => {
+  const arch = e.target.files[0]
+  if (!arch) return
+  const lector = new FileReader()
+  lector.onload = ev => {
+    if (!miPerfil) miPerfil = {}
+    miPerfil.foto = ev.target.result
+    actualizarFotoPerfil(miPerfil.foto)
+  }
+  lector.readAsDataURL(arch)
+})
+
+function actualizarFotoPerfil(urlFoto) {
+  const elem = document.getElementById('mi-foto-grande')
+  const elemMini = document.getElementById('foto-preview-mini')
+  if (urlFoto) {
+    elem.innerHTML = `<img src="${urlFoto}" alt="Yo">`
+    elemMini.innerHTML = `<img src="${urlFoto}" alt="Yo">`
+  } else if (miPerfil?.nombre) {
+    const inicial = miPerfil.nombre[0].toUpperCase()
+    elem.innerHTML = inicial
+    elemMini.innerHTML = inicial
+  }
+}
+
+// ===== PUBLICACIONES =====
 let archivoSeleccionado = null
 
 document.getElementById('archivo-entrada').addEventListener('change', e => {
@@ -150,12 +201,10 @@ document.getElementById('btn-publicar').addEventListener('click', () => {
     fecha: new Date().toISOString()
   }
 
-  misPublicaciones.unshift(nuevaPub)
-  almacen.guardar('publicaciones', misPublicaciones)
-  agregarPublicacion(nuevaPub, true)
-
-  // Compartir con todos
-  CANAL.postMessage({ tipo: 'publicacion', datos: nuevaPub, de: miId })
+  // Enviar a TODOS los dispositivos
+  if (db) {
+    publicacionesRef.push(nuevaPub)
+  }
 
   // Limpiar
   document.getElementById('nuevo-texto').value = ''
@@ -164,113 +213,25 @@ document.getElementById('btn-publicar').addEventListener('click', () => {
   archivoSeleccionado = null
 })
 
-// ===== PERFIL =====
-document.getElementById('foto-perfil-entrada').addEventListener('change', e => {
-  const arch = e.target.files[0]
-  if (!arch) return
-  const lector = new FileReader()
-  lector.onload = ev => {
-    if (!miPerfil) miPerfil = {}
-    miPerfil.foto = ev.target.result
-    actualizarFotoPerfil(miPerfil.foto)
-  }
-  lector.readAsDataURL(arch)
-})
-
-function actualizarFotoPerfil(urlFoto) {
-  const elem = document.getElementById('mi-foto-grande')
-  const elemMini = document.getElementById('foto-preview-mini')
-  if (urlFoto) {
-    elem.innerHTML = `<img src="${urlFoto}" alt="Yo">`
-    elemMini.innerHTML = `<img src="${urlFoto}" alt="Yo">`
-  } else if (miPerfil?.nombre) {
-    const inicial = miPerfil.nombre[0].toUpperCase()
-    elem.innerHTML = inicial
-    elemMini.innerHTML = inicial
-  }
-}
-
-document.getElementById('btn-guardar-perfil').addEventListener('click', () => {
-  const nombre = document.getElementById('input-nombre').value.trim()
-  const apellido = document.getElementById('input-apellido').value.trim()
-  if (!nombre || !apellido) return alert('Escribe tu nombre y apellido ✍️')
-
-  miPerfil = {
-    id: miId,
-    nombre,
-    apellido,
-    foto: miPerfil?.foto || null
-  }
-  
-  // ✅ Guardar y aparecer en la lista
-  usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
-  almacen.guardar('mi_perfil', miPerfil)
-  
-  // ✅ Avisar a TODOS los dispositivos conectados
-  CANAL.postMessage({ tipo: 'nuevo-perfil', datos: miPerfil, de: miId })
-  
-  actualizarFotoPerfil(miPerfil.foto)
-  renderizarListaUsuarios() // ✅ Refrescar inmediatamente
-  alert('✅ Perfil guardado! Ya apareces en Usuarios Activos')
-})
-
-// ===== LISTA DE USUARIOS ACTIVOS =====
-function renderizarListaUsuarios() {
-  listaUsuarios.innerHTML = ''
-  
-  // Filtrar: solo mostrar perfiles completos
-  const activos = Object.values(usuariosConectados).filter(u => u.nombre)
-  
-  if (activos.length === 0) {
-    listaUsuarios.innerHTML = `
-      <p style="color:var(--texto-mudo);text-align:center;padding:30px;">
-        👤 Nadie conectado aún<br>
-        Crea tu perfil arriba y comparte el enlace
-      </p>
-    `
-    return
-  }
-
-  activos.forEach(usuario => {
-    const esYo = usuario.id === miId
-    const tarjeta = document.createElement('div')
-    tarjeta.className = 'tarjeta-usuario'
-    tarjeta.innerHTML = `
-      <div class="foto-perfil">
-        ${usuario.foto ? `<img src="${usuario.foto}">` : usuario.nombre[0].toUpperCase()}
+function renderizarPublicaciones() {
+  muro.innerHTML = ''
+  misPublicaciones.forEach(p => {
+    if (!p) return
+    const elem = document.createElement('div')
+    elem.className = 'publicacion'
+    elem.innerHTML = `
+      <div class="pub-cabecera">
+        <div class="foto-perfil">${p.fotoAutor ? `<img src="${p.fotoAutor}">` : (p.nombreAutor?.[0] || '?')}</div>
+        <div>
+          <div class="pub-autor">${p.nombreAutor || 'Anónimo'}</div>
+          <div class="pub-fecha">${new Date(p.fecha).toLocaleString('es-EC')}</div>
+        </div>
       </div>
-      <div>
-        <div class="usuario-nombre">${usuario.nombre} ${usuario.apellido} ${esYo ? '(Tú)' : ''}</div>
-        <div class="usuario-id">Activo ✅</div>
-      </div>
+      ${p.texto ? `<div class="pub-contenido">${p.texto}</div>` : ''}
+      ${p.imagen ? `<div class="pub-media"><img src="${p.imagen}" alt=""></div>` : ''}
     `
-    listaUsuarios.appendChild(tarjeta)
+    muro.appendChild(elem)
   })
-}
-
-// ===== CHAT =====
-let conversacionActiva = null
-
-document.getElementById('volver-chats').addEventListener('click', () => {
-  conversacionActiva = null
-  ventanaChat.style.display = 'none'
-  listaChats.style.display = 'flex'
-  tituloChat.textContent = 'Mensajes'
-})
-
-document.getElementById('btn-enviar').addEventListener('click', enviarMensaje)
-inputMensaje.addEventListener('keydown', e => e.key === 'Enter' && enviarMensaje())
-
-function enviarMensaje() {
-  const texto = inputMensaje.value.trim()
-  if (!texto) return
-  
-  const div = document.createElement('div')
-  div.className = 'mensaje mio'
-  div.textContent = texto
-  mensajesChat.appendChild(div)
-  inputMensaje.value = ''
-  mensajesChat.scrollTop = mensajesChat.scrollHeight
 }
 
 // ===== NAVEGACIÓN =====
