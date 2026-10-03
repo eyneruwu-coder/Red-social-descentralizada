@@ -1,9 +1,10 @@
 // =============================================
-// 🌐 CODEC — Red Social Descentralizada
+// 🌐 CODEC — Conectado entre todos
 // =============================================
 
 let miId, miPerfil = null
-const conversaciones = {}
+let misPublicaciones = []
+let misConversaciones = {}
 
 const almacen = {
   guardar(clave, valor) {
@@ -26,9 +27,15 @@ const tituloChat = document.getElementById('titulo-chat')
 const inputMensaje = document.getElementById('input-mensaje')
 const contadorMensajes = document.getElementById('contador-mensajes')
 
+// Canal público para compartir datos
+const CANAL = new BroadcastChannel('codec-red-social')
+
 function iniciarTodo() {
-  miId = 'user-' + Math.random().toString(36).slice(2, 10)
+  miId = 'u_' + Math.random().toString(36).slice(2, 10)
+  
   miPerfil = almacen.leer('mi_perfil')
+  misPublicaciones = almacen.leer('publicaciones', [])
+  misConversaciones = almacen.leer('conversaciones', {})
 
   if (miPerfil) {
     document.getElementById('input-nombre').value = miPerfil.nombre || ''
@@ -36,31 +43,57 @@ function iniciarTodo() {
     actualizarFotoPerfil(miPerfil.foto || null)
   }
 
+  // Escuchar lo que publican los demás
+  CANAL.onmessage = (e) => {
+    const { tipo, datos, de } = e.data
+    if (de === miId) return // Ignorar lo que yo mismo envío
+
+    if (tipo === 'publicacion') {
+      agregarPublicacion(datos, true)
+    } else if (tipo === 'perfil') {
+      // Actualizar lista de usuarios cuando alguien guarda su perfil
+      renderizarListaUsuarios()
+    } else if (tipo === 'mensaje') {
+      recibirMensaje(datos)
+    }
+  }
+
   setTimeout(() => {
     pantallaCarga.style.display = 'none'
     app.style.display = 'block'
-    cargarDatosDemo()
+    renderizarPublicaciones()
+    renderizarListaUsuarios()
   }, 800)
 }
 
-function cargarDatosDemo() {
-  muro.innerHTML = `
-    <div class="publicacion">
-      <div class="pub-cabecera">
-        <div class="foto-perfil">C</div>
-        <div>
-          <div class="pub-autor">CODEC</div>
-          <div class="pub-fecha">Red activa</div>
-        </div>
+// --- PUBLICACIONES ---
+function renderizarPublicaciones() {
+  muro.innerHTML = ''
+  misPublicaciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .forEach(p => agregarPublicacion(p, false))
+}
+
+function agregarPublicacion(p, alPrincipio = false) {
+  if (misPublicaciones.find(x => x.id === p.id)) return // Evitar duplicados
+  if (alPrincipio) {
+    misPublicaciones.unshift(p)
+    almacen.guardar('publicaciones', misPublicaciones)
+  }
+
+  const elem = document.createElement('div')
+  elem.className = 'publicacion'
+  elem.innerHTML = `
+    <div class="pub-cabecera">
+      <div class="foto-perfil">${p.fotoAutor ? `<img src="${p.fotoAutor}">` : (p.nombreAutor?.[0] || '?')}</div>
+      <div>
+        <div class="pub-autor">${p.nombreAutor || 'Anónimo'}</div>
+        <div class="pub-fecha">${new Date(p.fecha).toLocaleString('es-EC')}</div>
       </div>
-      <div class="pub-contenido">¡Bienvenido a la red descentralizada! 🚀<br>Crea tu perfil y empieza a compartir.</div>
     </div>
+    ${p.texto ? `<div class="pub-contenido">${p.texto}</div>` : ''}
+    ${p.imagen ? `<div class="pub-media"><img src="${p.imagen}" alt=""></div>` : ''}
   `
-  listaUsuarios.innerHTML = `
-    <p style="color: var(--texto-mudo); text-align:center; padding:30px;">
-      Crea tu perfil arriba 👆<br>y comparte el enlace con amigos
-    </p>
-  `
+  alPrincipio ? muro.prepend(elem) : muro.appendChild(elem)
 }
 
 let archivoSeleccionado = null
@@ -84,28 +117,31 @@ document.getElementById('btn-publicar').addEventListener('click', () => {
   if (!texto && !archivoSeleccionado) return alert('Escribe algo 📝')
   if (!miPerfil) return alert('Crea tu perfil en "Comunidad" primero 👤')
 
-  const fecha = new Date().toLocaleString('es-EC')
-  const nuevo = document.createElement('div')
-  nuevo.className = 'publicacion'
-  nuevo.innerHTML = `
-    <div class="pub-cabecera">
-      <div class="foto-perfil">${miPerfil.foto ? `<img src="${miPerfil.foto}">` : miPerfil.nombre[0]}</div>
-      <div>
-        <div class="pub-autor">${miPerfil.nombre} ${miPerfil.apellido}</div>
-        <div class="pub-fecha">${fecha}</div>
-      </div>
-    </div>
-    ${texto ? `<div class="pub-contenido">${texto}</div>` : ''}
-    ${archivoSeleccionado ? `<div class="pub-media"><img src="${URL.createObjectURL(archivoSeleccionado)}"></div>` : ''}
-  `
-  muro.insertBefore(nuevo, muro.firstChild)
+  const nuevaPub = {
+    id: Date.now() + '_' + miId,
+    autorId: miId,
+    nombreAutor: `${miPerfil.nombre} ${miPerfil.apellido}`,
+    fotoAutor: miPerfil.foto,
+    texto,
+    imagen: archivoSeleccionado ? URL.createObjectURL(archivoSeleccionado) : null,
+    fecha: new Date().toISOString()
+  }
 
+  misPublicaciones.unshift(nuevaPub)
+  almacen.guardar('publicaciones', misPublicaciones)
+  agregarPublicacion(nuevaPub, true)
+
+  // Compartir con todos los que están conectados
+  CANAL.postMessage({ tipo: 'publicacion', datos: nuevaPub, de: miId })
+
+  // Limpiar
   document.getElementById('nuevo-texto').value = ''
   document.getElementById('vista-previa-archivo').innerHTML = ''
   document.getElementById('vista-previa-archivo').style.display = 'none'
   archivoSeleccionado = null
 })
 
+// --- PERFIL ---
 document.getElementById('foto-perfil-entrada').addEventListener('change', e => {
   const arch = e.target.files[0]
   if (!arch) return
@@ -137,15 +173,31 @@ document.getElementById('btn-guardar-perfil').addEventListener('click', () => {
   if (!nombre || !apellido) return alert('Escribe tu nombre y apellido ✍️')
 
   miPerfil = {
+    id: miId,
     nombre,
     apellido,
     foto: miPerfil?.foto || null
   }
   almacen.guardar('mi_perfil', miPerfil)
+  
+  // Avisar a todos que me uní
+  CANAL.postMessage({ tipo: 'perfil', datos: miPerfil, de: miId })
+  
   actualizarFotoPerfil(miPerfil.foto)
-  alert('✅ Perfil guardado!')
+  alert('✅ Perfil guardado! Comparte el enlace con amigos para que te vean')
 })
 
+// --- LISTA DE USUARIOS ---
+function renderizarListaUsuarios() {
+  listaUsuarios.innerHTML = `
+    <p style="color:var(--texto-mudo);text-align:center;padding:20px;">
+      👤 Tú: ${miPerfil ? `${miPerfil.nombre} ${miPerfil.apellido}` : 'Sin perfil'}<br>
+      <small>Comparte el enlace con amigos para que aparezcan aquí</small>
+    </p>
+  `
+}
+
+// --- CHAT ---
 let conversacionActiva = null
 
 document.getElementById('volver-chats').addEventListener('click', () => {
@@ -160,7 +212,26 @@ inputMensaje.addEventListener('keydown', e => e.key === 'Enter' && enviarMensaje
 
 function enviarMensaje() {
   const texto = inputMensaje.value.trim()
-  if (!texto) return
+  if (!texto || !conversacionActiva) return
+  
+  const mensaje = {
+    id: Date.now(),
+    de: miId,
+    para: conversacionActiva,
+    texto,
+    fecha: new Date().toISOString()
+  }
+  
+  // Guardar localmente
+  if (!misConversaciones[conversacionActiva]) {
+    misConversaciones[conversacionActiva] = []
+  }
+  misConversaciones[conversacionActiva].push(mensaje)
+  almacen.guardar('conversaciones', misConversaciones)
+  
+  // Enviar por el canal
+  CANAL.postMessage({ tipo: 'mensaje', datos: mensaje, de: miId })
+  
   const div = document.createElement('div')
   div.className = 'mensaje mio'
   div.textContent = texto
@@ -169,6 +240,25 @@ function enviarMensaje() {
   mensajesChat.scrollTop = mensajesChat.scrollHeight
 }
 
+function recibirMensaje(msg) {
+  if (msg.para && msg.para !== miId) return // No es para mí
+  if (!misConversaciones[msg.de]) misConversaciones[msg.de] = []
+  misConversaciones[msg.de].push(msg)
+  almacen.guardar('conversaciones', misConversaciones)
+  
+  if (conversacionActiva === msg.de) {
+    const div = document.createElement('div')
+    div.className = 'mensaje suyo'
+    div.textContent = msg.texto
+    mensajesChat.appendChild(div)
+    mensajesChat.scrollTop = mensajesChat.scrollHeight
+  } else {
+    contadorMensajes.textContent = parseInt(contadorMensajes.textContent || 0) + 1
+    contadorMensajes.style.display = 'block'
+  }
+}
+
+// --- NAVEGACIÓN ---
 document.querySelectorAll('.item-menu').forEach(boton => {
   boton.addEventListener('click', () => {
     document.querySelectorAll('.pagina').forEach(p => p.classList.remove('activa'))
