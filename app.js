@@ -1,10 +1,10 @@
 // =============================================
-// 🌐 CODEC — Conectado entre todos
+// 🌐 CODEC — Usuarios Activos + Publicaciones Compartidas
 // =============================================
 
 let miId, miPerfil = null
 let misPublicaciones = []
-let misConversaciones = {}
+let usuariosConectados = {} // Aquí guardamos a TODOS
 
 const almacen = {
   guardar(clave, valor) {
@@ -27,7 +27,7 @@ const tituloChat = document.getElementById('titulo-chat')
 const inputMensaje = document.getElementById('input-mensaje')
 const contadorMensajes = document.getElementById('contador-mensajes')
 
-// Canal público para compartir datos
+// Canal para compartir todo entre dispositivos
 const CANAL = new BroadcastChannel('codec-red-social')
 
 function iniciarTodo() {
@@ -35,29 +35,58 @@ function iniciarTodo() {
   
   miPerfil = almacen.leer('mi_perfil')
   misPublicaciones = almacen.leer('publicaciones', [])
-  misConversaciones = almacen.leer('conversaciones', {})
 
+  // Cargar mi perfil en la lista
   if (miPerfil) {
+    usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
     document.getElementById('input-nombre').value = miPerfil.nombre || ''
     document.getElementById('input-apellido').value = miPerfil.apellido || ''
     actualizarFotoPerfil(miPerfil.foto || null)
   }
 
-  // Escuchar lo que publican los demás
+  // Escuchar lo que envían los demás dispositivos
   CANAL.onmessage = (e) => {
     const { tipo, datos, de } = e.data
-    if (de === miId) return // Ignorar lo que yo mismo envío
+    if (de === miId) return // Ignorar lo que yo envío
 
-    if (tipo === 'publicacion') {
-      agregarPublicacion(datos, true)
-    } else if (tipo === 'perfil') {
-      // Actualizar lista de usuarios cuando alguien guarda su perfil
+    if (tipo === 'nuevo-perfil') {
+      // ✅ Aparece el usuario nuevo
+      usuariosConectados[de] = { ...datos, ultimaVez: Date.now() }
       renderizarListaUsuarios()
-    } else if (tipo === 'mensaje') {
-      recibirMensaje(datos)
+    }
+    else if (tipo === 'publicacion') {
+      // ✅ Llega publicación
+      if (!misPublicaciones.find(p => p.id === datos.id)) {
+        misPublicaciones.unshift(datos)
+        almacen.guardar('publicaciones', misPublicaciones)
+        agregarPublicacion(datos, true)
+      }
+    }
+    else if (tipo === 'solicitud-lista') {
+      // Cuando alguien nuevo entra, le enviamos nuestra lista
+      if (miPerfil) {
+        CANAL.postMessage({
+          tipo: 'lista-completa',
+          datos: usuariosConectados,
+          de: miId
+        })
+      }
+    }
+    else if (tipo === 'lista-completa') {
+      // Recibimos la lista de todos los que ya están conectados
+      Object.assign(usuariosConectados, datos)
+      // Quitar usuarios viejos sin perfil
+      if (miPerfil) usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
+      renderizarListaUsuarios()
     }
   }
 
+  // Pedir lista de usuarios ya conectados cuando entro
+  setTimeout(() => {
+    CANAL.postMessage({ tipo: 'solicitud-lista', de: miId })
+  }, 500)
+
+  // Mostrar todo
   setTimeout(() => {
     pantallaCarga.style.display = 'none'
     app.style.display = 'block'
@@ -66,7 +95,7 @@ function iniciarTodo() {
   }, 800)
 }
 
-// --- PUBLICACIONES ---
+// ===== PUBLICACIONES =====
 function renderizarPublicaciones() {
   muro.innerHTML = ''
   misPublicaciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
@@ -74,12 +103,6 @@ function renderizarPublicaciones() {
 }
 
 function agregarPublicacion(p, alPrincipio = false) {
-  if (misPublicaciones.find(x => x.id === p.id)) return // Evitar duplicados
-  if (alPrincipio) {
-    misPublicaciones.unshift(p)
-    almacen.guardar('publicaciones', misPublicaciones)
-  }
-
   const elem = document.createElement('div')
   elem.className = 'publicacion'
   elem.innerHTML = `
@@ -115,7 +138,7 @@ document.getElementById('archivo-entrada').addEventListener('change', e => {
 document.getElementById('btn-publicar').addEventListener('click', () => {
   const texto = document.getElementById('nuevo-texto').value.trim()
   if (!texto && !archivoSeleccionado) return alert('Escribe algo 📝')
-  if (!miPerfil) return alert('Crea tu perfil en "Comunidad" primero 👤')
+  if (!miPerfil) return alert('Crea tu perfil primero 👤')
 
   const nuevaPub = {
     id: Date.now() + '_' + miId,
@@ -131,7 +154,7 @@ document.getElementById('btn-publicar').addEventListener('click', () => {
   almacen.guardar('publicaciones', misPublicaciones)
   agregarPublicacion(nuevaPub, true)
 
-  // Compartir con todos los que están conectados
+  // Compartir con todos
   CANAL.postMessage({ tipo: 'publicacion', datos: nuevaPub, de: miId })
 
   // Limpiar
@@ -141,7 +164,7 @@ document.getElementById('btn-publicar').addEventListener('click', () => {
   archivoSeleccionado = null
 })
 
-// --- PERFIL ---
+// ===== PERFIL =====
 document.getElementById('foto-perfil-entrada').addEventListener('change', e => {
   const arch = e.target.files[0]
   if (!arch) return
@@ -178,26 +201,54 @@ document.getElementById('btn-guardar-perfil').addEventListener('click', () => {
     apellido,
     foto: miPerfil?.foto || null
   }
+  
+  // ✅ Guardar y aparecer en la lista
+  usuariosConectados[miId] = { ...miPerfil, ultimaVez: Date.now() }
   almacen.guardar('mi_perfil', miPerfil)
   
-  // Avisar a todos que me uní
-  CANAL.postMessage({ tipo: 'perfil', datos: miPerfil, de: miId })
+  // ✅ Avisar a TODOS los dispositivos conectados
+  CANAL.postMessage({ tipo: 'nuevo-perfil', datos: miPerfil, de: miId })
   
   actualizarFotoPerfil(miPerfil.foto)
-  alert('✅ Perfil guardado! Comparte el enlace con amigos para que te vean')
+  renderizarListaUsuarios() // ✅ Refrescar inmediatamente
+  alert('✅ Perfil guardado! Ya apareces en Usuarios Activos')
 })
 
-// --- LISTA DE USUARIOS ---
+// ===== LISTA DE USUARIOS ACTIVOS =====
 function renderizarListaUsuarios() {
-  listaUsuarios.innerHTML = `
-    <p style="color:var(--texto-mudo);text-align:center;padding:20px;">
-      👤 Tú: ${miPerfil ? `${miPerfil.nombre} ${miPerfil.apellido}` : 'Sin perfil'}<br>
-      <small>Comparte el enlace con amigos para que aparezcan aquí</small>
-    </p>
-  `
+  listaUsuarios.innerHTML = ''
+  
+  // Filtrar: solo mostrar perfiles completos
+  const activos = Object.values(usuariosConectados).filter(u => u.nombre)
+  
+  if (activos.length === 0) {
+    listaUsuarios.innerHTML = `
+      <p style="color:var(--texto-mudo);text-align:center;padding:30px;">
+        👤 Nadie conectado aún<br>
+        Crea tu perfil arriba y comparte el enlace
+      </p>
+    `
+    return
+  }
+
+  activos.forEach(usuario => {
+    const esYo = usuario.id === miId
+    const tarjeta = document.createElement('div')
+    tarjeta.className = 'tarjeta-usuario'
+    tarjeta.innerHTML = `
+      <div class="foto-perfil">
+        ${usuario.foto ? `<img src="${usuario.foto}">` : usuario.nombre[0].toUpperCase()}
+      </div>
+      <div>
+        <div class="usuario-nombre">${usuario.nombre} ${usuario.apellido} ${esYo ? '(Tú)' : ''}</div>
+        <div class="usuario-id">Activo ✅</div>
+      </div>
+    `
+    listaUsuarios.appendChild(tarjeta)
+  })
 }
 
-// --- CHAT ---
+// ===== CHAT =====
 let conversacionActiva = null
 
 document.getElementById('volver-chats').addEventListener('click', () => {
@@ -212,25 +263,7 @@ inputMensaje.addEventListener('keydown', e => e.key === 'Enter' && enviarMensaje
 
 function enviarMensaje() {
   const texto = inputMensaje.value.trim()
-  if (!texto || !conversacionActiva) return
-  
-  const mensaje = {
-    id: Date.now(),
-    de: miId,
-    para: conversacionActiva,
-    texto,
-    fecha: new Date().toISOString()
-  }
-  
-  // Guardar localmente
-  if (!misConversaciones[conversacionActiva]) {
-    misConversaciones[conversacionActiva] = []
-  }
-  misConversaciones[conversacionActiva].push(mensaje)
-  almacen.guardar('conversaciones', misConversaciones)
-  
-  // Enviar por el canal
-  CANAL.postMessage({ tipo: 'mensaje', datos: mensaje, de: miId })
+  if (!texto) return
   
   const div = document.createElement('div')
   div.className = 'mensaje mio'
@@ -240,34 +273,13 @@ function enviarMensaje() {
   mensajesChat.scrollTop = mensajesChat.scrollHeight
 }
 
-function recibirMensaje(msg) {
-  if (msg.para && msg.para !== miId) return // No es para mí
-  if (!misConversaciones[msg.de]) misConversaciones[msg.de] = []
-  misConversaciones[msg.de].push(msg)
-  almacen.guardar('conversaciones', misConversaciones)
-  
-  if (conversacionActiva === msg.de) {
-    const div = document.createElement('div')
-    div.className = 'mensaje suyo'
-    div.textContent = msg.texto
-    mensajesChat.appendChild(div)
-    mensajesChat.scrollTop = mensajesChat.scrollHeight
-  } else {
-    contadorMensajes.textContent = parseInt(contadorMensajes.textContent || 0) + 1
-    contadorMensajes.style.display = 'block'
-  }
-}
-
-// --- NAVEGACIÓN ---
+// ===== NAVEGACIÓN =====
 document.querySelectorAll('.item-menu').forEach(boton => {
   boton.addEventListener('click', () => {
     document.querySelectorAll('.pagina').forEach(p => p.classList.remove('activa'))
     document.getElementById(`pagina-${boton.dataset.pagina}`).classList.add('activa')
     document.querySelectorAll('.item-menu').forEach(b => b.classList.remove('activa'))
     boton.classList.add('activa')
-    conversacionActiva = null
-    ventanaChat.style.display = 'none'
-    listaChats.style.display = 'flex'
   })
 })
 
