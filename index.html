@@ -9,38 +9,59 @@
 <body>
   <h1>Red Descentralizada</h1>
   
+  <!-- IDENTIDAD PERMANENTE -->
   <div class="seccion">
-    <label>Tu número / identificación única:</label>
-    <input type="text" id="miIdentificador" placeholder="Ej: 12345 o Usuario_789">
-    <button id="conectarBtn">Crear identidad</button>
-    <p class="info">Tu identidad: <span id="tuId" class="resaltado">—</span></p>
-    <p class="ayuda">¡Guárdalo! Con este mismo te podrán encontrar siempre que uses el mismo número</p>
+    <label>Tu número de identificación:</label>
+    <input type="text" id="miIdentificador" placeholder="Ej: 0987654321">
+    <button id="conectarBtn">Activar identidad</button>
+    <p class="info">Activo: <span id="tuId" class="resaltado">—</span></p>
+    <p class="ayuda">Tu número se guarda automáticamente, no tendrás que escribirlo de nuevo</p>
   </div>
 
+  <!-- CONECTAR CON OTRO -->
   <div class="seccion">
-    <label>Conectar con otro usuario:</label>
-    <input type="text" id="idDestino" placeholder="Escribe su número o identificación">
+    <label>Conectar con:</label>
+    <input type="text" id="idDestino" placeholder="Escribe su número">
     <button id="enlazarBtn">Conectar</button>
+    <div id="estadoConexion"></div>
   </div>
 
+  <!-- LLAMADAS -->
+  <div class="seccion">
+    <h3>Llamadas</h3>
+    <button id="llamarBtn" disabled>📞 Llamar al contacto</button>
+    <div id="llamadaEnCurso" class="oculto">
+      <p id="estadoLlamada">Llamando...</p>
+      <button id="colgarBtn">📵 Colgar</button>
+      <audio id="audioRemoto" autoplay playsinline>
+    </div>
+    <div id="llamadaEntrante" class="oculto">
+      <p id="quienLlama"></p>
+      <button id="responderBtn">✅ Responder</button>
+      <button id="rechazarBtn">❌ Rechazar</button>
+    </div>
+  </div>
+
+  <!-- CHAT -->
   <div class="seccion">
     <h3>Conectados: <span id="contador">0</span></h3>
     <ul id="listaConectados"></ul>
+    <p id="pendientesInfo" class="ayuda"></p>
   </div>
 
   <div class="seccion">
     <textarea id="mensajeInput" placeholder="Escribe un mensaje..."></textarea>
-    <button id="publicarBtn">Enviar mensaje</button>
+    <button id="publicarBtn">Enviar</button>
     
     <div class="audio-zona">
-      <button id="grabarBtn">🎙️ Grabar nota de voz</button>
-      <button id="detenerBtn" disabled>⏹️ Detener grabación</button>
-      <button id="enviarAudioBtn" disabled>📤 Enviar nota</button>
+      <button id="grabarBtn">🎙️ Grabar nota</button>
+      <button id="detenerBtn" disabled>⏹️ Detener</button>
+      <button id="enviarAudioBtn" disabled>📤 Enviar audio</button>
     </div>
   </div>
 
   <div class="seccion">
-    <h3>Conversaciones:</h3>
+    <h3>Historial:</h3>
     <div id="muro"></div>
   </div>
 
