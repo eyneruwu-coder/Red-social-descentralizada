@@ -1,7 +1,8 @@
 // ELEMENTOS DEL DOM
 const miIdentificadorInput = document.getElementById('miIdentificador');
 const conectarBtn = document.getElementById('conectarBtn');
-const tuIdSpan = document.getElementById('tuId');
+const estadoConexion = document.getElementById('estadoConexion');
+const avisoAuto = document.getElementById('avisoAuto');
 const idDestinoInput = document.getElementById('idDestino');
 const enlazarBtn = document.getElementById('enlazarBtn');
 const listaConectados = document.getElementById('listaConectados');
@@ -17,7 +18,6 @@ const llamarBtn = document.getElementById('llamarBtn');
 const colgarBtn = document.getElementById('colgarBtn');
 const responderBtn = document.getElementById('responderBtn');
 const rechazarBtn = document.getElementById('rechazarBtn');
-const estadoConexion = document.getElementById('estadoConexion');
 const llamadaEnCurso = document.getElementById('llamadaEnCurso');
 const llamadaEntrante = document.getElementById('llamadaEntrante');
 const quienLlama = document.getElementById('quienLlama');
@@ -27,23 +27,26 @@ const audioRemoto = document.getElementById('audioRemoto');
 let peer;
 let conexiones = [];
 let miId = '';
+let miNumeroGuardado = '';
 let grabadora;
 let datosAudioBlob = null;
 let baseDatos;
 let llamadaActiva = null;
 let flujoLocal = null;
+let reconectarTiempo = null;
+let verificacionConexion = null;
 
 // ==============================================
-// PASO 1: INDEXEDDB — GUARDADO PERMANENTE LOCAL
+// INDEXEDDB — BASE DE DATOS LOCAL
 // ==============================================
 function iniciarBaseDatos() {
   return new Promise((resolver, rechazar) => {
-    const solicitud = indexedDB.open('RedDescentralizada', 2);
+    const solicitud = indexedDB.open('RedDescentralizada', 3);
     
     solicitud.onupgradeneeded = (e) => {
       baseDatos = e.target.result;
-      if (!baseDatos.objectStoreNames.contains('identidad')) {
-        baseDatos.createObjectStore('identidad');
+      if (!baseDatos.objectStoreNames.contains('config')) {
+        baseDatos.createObjectStore('config');
       }
       if (!baseDatos.objectStoreNames.contains('mensajes')) {
         const msgs = baseDatos.createObjectStore('mensajes', { autoIncrement: true });
@@ -61,24 +64,22 @@ function iniciarBaseDatos() {
   });
 }
 
-// Guardar y recuperar tu número
-async function guardarIdentidad(numero) {
+async function guardarConfig(clave, valor) {
   return new Promise(resolver => {
-    const tx = baseDatos.transaction('identidad', 'readwrite');
-    tx.objectStore('identidad').put(numero, 'miNumero');
+    const tx = baseDatos.transaction('config', 'readwrite');
+    tx.objectStore('config').put(valor, clave);
     tx.oncomplete = resolver;
   });
 }
 
-async function recuperarIdentidad() {
+async function leerConfig(clave) {
   return new Promise(resolver => {
-    const tx = baseDatos.transaction('identidad');
-    const solicitud = tx.objectStore('identidad').get('miNumero');
-    solicitud.onsuccess = () => resolver(solicitud.result || '');
+    const tx = baseDatos.transaction('config');
+    const solicitud = tx.objectStore('config').get(clave);
+    solicitud.onsuccess = () => resolver(solicitud.result || null);
   });
 }
 
-// Mensajes: guardar, leer, marcar como entregados
 async function guardarMensaje(datos) {
   return new Promise(resolver => {
     const tx = baseDatos.transaction('mensajes', 'readwrite');
@@ -114,18 +115,28 @@ async function leerPendientesPara(destino) {
 }
 
 // ==============================================
-// PASO 2: CARGAR AL INICIAR + IDENTIDAD PERMANENTE
+// CARGA INICIAL + CONEXIÓN AUTOMÁTICA
 // ==============================================
 async function iniciarTodo() {
   await iniciarBaseDatos();
   
   // Recuperar número guardado
-  const numeroGuardado = await recuperarIdentidad();
-  if (numeroGuardado) {
-    miIdentificadorInput.value = numeroGuardado;
+  miNumeroGuardado = await leerConfig('miNumero');
+  const activarAuto = await leerConfig('conexionAutomatica');
+  
+  if (miNumeroGuardado) {
+    miIdentificadorInput.value = miNumeroGuardado;
+    
+    // Conectar automáticamente si está activado
+    if (activarAuto !== false) {
+      avisoAuto.classList.remove('oculto');
+      await conectarConIdentidad(miNumeroGuardado);
+    }
+  } else {
+    avisoAuto.textContent = 'Escribe tu número para empezar';
   }
 
-  // Cargar historial en pantalla
+  // Cargar historial
   const historial = await leerMensajes();
   historial.sort((a, b) => a.fecha - b.fecha);
   historial.forEach(m => {
@@ -137,72 +148,129 @@ async function iniciarTodo() {
   });
 }
 
-iniciarTodo();
-
 // ==============================================
-// PASO 3: CONEXIÓN CON NÚMERO PERMANENTE
+// FUNCIÓN CENTRAL DE CONEXIÓN
 // ==============================================
-conectarBtn.addEventListener('click', async () => {
-  miId = miIdentificadorInput.value.trim();
+async function conectarConIdentidad(numero) {
+  if (!numero) return;
   
-  if (!miId) {
-    alert('Escribe tu número primero');
-    return;
-  }
+  // Limpiar intentos anteriores
+  if (reconectarTiempo) clearTimeout(reconectarTiempo);
+  if (verificacionConexion) clearInterval(verificacionConexion);
+  if (peer) peer.destroy();
+  
+  miId = numero;
+  await guardarConfig('miNumero', numero);
+  await guardarConfig('conexionAutomatica', true); // Activar auto para próximas veces
 
-  // Guardar para siempre
-  await guardarIdentidad(miId);
+  conectarBtn.disabled = true;
+  conectarBtn.textContent = 'Conectando...';
+  miIdentificadorInput.disabled = true;
+  avisoAuto.textContent = '🔄 Estableciendo conexión...';
 
-  // Conectar con NUESTRO número como ID
+  // CREAR CONEXIÓN CON NUESTRO NÚMERO
   peer = new Peer(miId);
 
   peer.on('open', async (idAsignado) => {
     miId = idAsignado;
-    tuIdSpan.textContent = idAsignado;
-    conectarBtn.disabled = true;
-    conectarBtn.textContent = '✅ Conectado';
-    miIdentificadorInput.disabled = true;
-    estadoConexion.innerHTML = '<span style="color:green">● En línea</span>';
+    conectarBtn.textContent = '✅ En línea';
+    estadoConexion.textContent = `Conectado como: ${miId}`;
+    estadoConexion.className = 'resaltado conectado';
+    avisoAuto.textContent = '✅ Conexión automática activa';
     
-    // Enviar mensajes pendientes que teníamos para otros
+    // Enviar pendientes
     await entregarPendientes();
+    
+    // Iniciar verificación de conexión cada 15s
+    verificacionConexion = setInterval(() => {
+      verificarConexionesActivas();
+    }, 15000);
   });
 
   peer.on('connection', manejarConexionEntrante);
-  
   peer.on('call', manejarLlamadaEntrante);
 
   peer.on('error', (err) => {
-    console.error('Error:', err);
+    console.error('Error de conexión:', err);
+    
     if (err.type === 'unavailable-id') {
-      alert('⚠️ Este número ya está conectado en otro dispositivo. Cierra la sesión ahí primero.');
-      estadoConexion.innerHTML = '<span style="color:red">● Ocupado</span>';
+      estadoConexion.textContent = '⚠️ Número activo en otro dispositivo';
+      estadoConexion.className = 'resaltado desconectado';
+      avisoAuto.textContent = 'Desconecta del otro dispositivo primero';
+      conectarBtn.disabled = false;
+      conectarBtn.textContent = 'Reintentar';
+      miIdentificadorInput.disabled = false;
+    } else if (err.type === 'network' || err.type === 'disconnected') {
+      estadoConexion.textContent = '🔌 Sin red — reconectando...';
+      estadoConexion.className = 'resaltado desconectado';
+      reconectarTiempo = setTimeout(() => conectarConIdentidad(numero), 5000);
     } else {
-      alert('Error: ' + err.type);
+      estadoConexion.textContent = `Error: ${err.type}`;
+      reconectarTiempo = setTimeout(() => conectarConIdentidad(numero), 8000);
     }
   });
+}
+
+// Botón manual — ahora también activa auto
+conectarBtn.addEventListener('click', async () => {
+  const numero = miIdentificadorInput.value.trim();
+  if (!numero) {
+    alert('Escribe tu número primero');
+    return;
+  }
+  await conectarConIdentidad(numero);
 });
 
 // ==============================================
-// PASO 4: CONECTAR CON OTROS Y ENTREGAR PENDIENTES
+// DETECCIÓN DE DESCONEXIÓN — LA CORRECCIÓN PRINCIPAL
+// ==============================================
+function verificarConexionesActivas() {
+  conexiones = conexiones.filter(conn => {
+    if (!conn.open) {
+      console.log('Conexión cerrada con:', conn.peerId);
+      return false;
+    }
+    return true;
+  });
+  actualizarLista();
+}
+
+// AVISAR DESPEDIDA AL CERRAR LA PÁGINA
+window.addEventListener('beforeunload', () => {
+  // Avisar a todos que nos vamos
+  conexiones.forEach(conn => {
+    if (conn.open) {
+      try {
+        conn.send({ tipo: 'despedida', de: miId });
+        conn.close();
+      } catch (e) {}
+    }
+  });
+  if (peer) peer.destroy();
+  if (verificacionConexion) clearInterval(verificacionConexion);
+});
+
+// ==============================================
+// CONECTAR CON OTROS
 // ==============================================
 enlazarBtn.addEventListener('click', async () => {
   const destino = idDestinoInput.value.trim();
   if (!destino || !peer) return;
   
-  const conn = peer.connect(destino);
+  const conn = peer.connect(destino, { reliable: true });
   conn.on('open', async () => {
     manejarConexion(conn);
-    // En cuanto se conectan → le entregamos lo que le guardamos
     await entregarPendientesA(conn, destino);
     llamarBtn.disabled = false;
     llamarBtn.dataset.destino = destino;
+  });
+  conn.on('error', (err) => {
+    console.log('Error al conectar con', destino, err);
   });
 });
 
 async function manejarConexionEntrante(conn) {
   manejarConexion(conn);
-  // Cuando alguien se conecta con nosotros → nos entrega lo que nos guardó
   conn.on('open', async () => {
     await entregarPendientesA(conn, miId);
     llamarBtn.disabled = false;
@@ -211,6 +279,7 @@ async function manejarConexionEntrante(conn) {
 }
 
 function manejarConexion(conn) {
+  // Evitar duplicados
   if (conexiones.some(c => c.peerId === conn.peer)) return;
   
   conn.peerId = conn.peer;
@@ -218,7 +287,13 @@ function manejarConexion(conn) {
   actualizarLista();
 
   conn.on('data', async (recibido) => {
-    // Mensaje nuevo
+    // Se despide → lo quitamos ya
+    if (recibido.tipo === 'despedida') {
+      conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
+      actualizarLista();
+      return;
+    }
+
     if (recibido.tipo === 'texto' || recibido.tipo === 'audio') {
       await guardarMensaje({ ...recibido, entregado: true });
       
@@ -229,24 +304,30 @@ function manejarConexion(conn) {
       }
     }
     
-    // Solicitud de mensajes pendientes
     if (recibido.tipo === 'solicitud-pendientes') {
       const pendientes = await leerPendientesPara(recibido.de);
-      pendientes.forEach(async m => {
+      for (const m of pendientes) {
         conn.send({
           tipo: m.tipo,
           de: miId,
           para: recibido.de,
           texto: m.texto || null,
           datos: m.datos || null,
-          esPendiente: true
+          entregado: true
         });
-        await marcarEntregado(m.id);
-      });
+        // Marcar como entregado por ID si existe
+        if (m.id) await marcarEntregado(m.id);
+      }
     }
   });
 
   conn.on('close', () => {
+    conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
+    actualizarLista();
+    llamarBtn.disabled = conexiones.length === 0;
+  });
+
+  conn.on('error', () => {
     conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
     actualizarLista();
     llamarBtn.disabled = conexiones.length === 0;
@@ -256,15 +337,23 @@ function manejarConexion(conn) {
 function actualizarLista() {
   listaConectados.innerHTML = '';
   contador.textContent = conexiones.length;
+  
   conexiones.forEach(c => {
     const li = document.createElement('li');
-    li.textContent = '🔗 ' + c.peerId;
+    li.innerHTML = `
+      <span>🔗 ${c.peerId}</span>
+      <span class="estado-usuario">● En línea</span>
+    `;
     listaConectados.appendChild(li);
   });
+
+  if (conexiones.length === 0) {
+    llamarBtn.disabled = true;
+  }
 }
 
 // ==============================================
-// PASO 5: MENSAJES QUE ESPERAN — EL CORAZÓN DE TODO
+// MENSAJES PENDIENTES Y ENTREGA
 // ==============================================
 async function entregarPendientesA(conn, destino) {
   conn.send({ tipo: 'solicitud-pendientes', de: miId, para: destino });
@@ -276,17 +365,17 @@ async function entregarPendientes() {
   }
 }
 
-// Enviar mensaje
+// Enviar texto
 publicarBtn.addEventListener('click', async () => {
   const texto = mensajeInput.value.trim();
   if (!texto || !peer) return;
 
-  const destino = conexiones.length > 0 ? conexiones[0].peerId : null;
-  if (!destino) {
+  if (conexiones.length === 0) {
     alert('Conéctate con alguien primero escribiendo su número');
     return;
   }
 
+  const destino = conexiones[0].peerId;
   const paquete = {
     tipo: 'texto',
     de: miId,
@@ -295,7 +384,6 @@ publicarBtn.addEventListener('click', async () => {
     entregado: false
   };
 
-  // Intentar enviar ahora
   let enviado = false;
   for (const conn of conexiones) {
     if (conn.peerId === destino && conn.open) {
@@ -305,7 +393,6 @@ publicarBtn.addEventListener('click', async () => {
     }
   }
 
-  // Guardar con estado
   await guardarMensaje({ ...paquete, entregado: enviado });
   agregarMensajeUI('Tú', texto, true, enviado);
   
@@ -316,19 +403,19 @@ publicarBtn.addEventListener('click', async () => {
 function agregarMensajeUI(de, texto, esPropio, entregado) {
   const div = document.createElement('div');
   div.className = `mensaje ${esPropio ? 'propio' : ''} ${entregado ? 'entregado' : 'pendiente'}`;
-  div.innerHTML = `<strong>${de}:</strong><br>${texto}${entregado ? '' : '<br><em>⌛ Pendiente de entrega</em>'}`;
+  div.innerHTML = `<strong>${de}:</strong><br>${texto}${entregado ? '' : '<br><em>⌛ Pendiente — se entregará cuando se conecte</em>'}`;
   muro.prepend(div);
 }
 
 function actualizarPendientesInfo() {
   leerMensajes().then(todos => {
     const pend = todos.filter(m => m.de === miId && !m.entregado).length;
-    pendientesInfo.textContent = pend > 0 ? `📦 ${pend} mensajes pendientes de entregar` : '';
+    pendientesInfo.textContent = pend > 0 ? `📦 ${pend} mensajes pendientes — se entregarán al reconectar` : '';
   });
 }
 
 // ==============================================
-// PASO 6: AUDIO — GRABAR Y ENVIAR
+// AUDIO
 // ==============================================
 grabarBtn.addEventListener('click', async () => {
   try {
@@ -341,7 +428,7 @@ grabarBtn.addEventListener('click', async () => {
       grabarBtn.disabled = false;
       detenerBtn.disabled = true;
       enviarAudioBtn.disabled = !datosAudioBlob;
-      flujoLocal.getTracks().forEach(t => t.stop());
+      if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
     };
 
     grabadora.start();
@@ -353,19 +440,33 @@ grabarBtn.addEventListener('click', async () => {
 });
 
 detenerBtn.addEventListener('click', () => {
-  if (grabadora?.state !== 'inactive') grabadora.stop();
+  if (grabadora && grabadora.state !== 'inactive') {
+    grabadora.stop();
+  }
 });
 
 enviarAudioBtn.addEventListener('click', async () => {
-  if (!datosAudioBlob) return;
-  const destino = conexiones.length > 0 ? conexiones[0].peerId : null;
-  if (!destino) { alert('Conéctate primero'); return; }
+  if (!datosAudioBlob || conexiones.length === 0) {
+    alert('Conéctate primero con alguien');
+    return;
+  }
 
-  const leer = (b) => new Promise(r => { const l = new FileReader(); l.onload = () => r(l.result); l.readAsDataURL(b); });
+  const destino = conexiones[0].peerId;
+  const leer = (blob) => new Promise(res => {
+    const lector = new FileReader();
+    lector.onload = () => res(lector.result);
+    lector.readAsDataURL(blob);
+  });
   const datos = await leer(datosAudioBlob);
 
-  const paquete = { tipo: 'audio', de: miId, para: destino, datos, entregado: false };
-  
+  const paquete = {
+    tipo: 'audio',
+    de: miId,
+    para: destino,
+    datos: datos,
+    entregado: false
+  };
+
   let enviado = false;
   for (const conn of conexiones) {
     if (conn.peerId === destino && conn.open) {
@@ -386,12 +487,16 @@ enviarAudioBtn.addEventListener('click', async () => {
 function agregarAudioUI(de, datos, esPropio, entregado) {
   const div = document.createElement('div');
   div.className = `mensaje ${esPropio ? 'propio' : ''} ${entregado ? '' : 'pendiente'}`;
-  div.innerHTML = `<strong>${de}:</strong><br><audio controls src="${datos}">${entregado ? '' : '<br><em>⌛ Pendiente</em>'}`;
+  div.innerHTML = `
+    <strong>${de}:</strong><br>
+    <audio controls src="${datos}">
+    ${entregado ? '' : '<br><em>⌛ Pendiente de entrega</em>'}
+  `;
   muro.prepend(div);
 }
 
 // ==============================================
-// PASO 7: LLAMADAS DE AUDIO 📞
+// LLAMADAS
 // ==============================================
 llamarBtn.addEventListener('click', async () => {
   const destino = llamarBtn.dataset.destino;
@@ -436,5 +541,14 @@ function manejarLlamadaComun(llamada) {
     llamadaActiva = null;
   });
 
+  llamada.on('error', () => {
+    llamadaEnCurso.classList.add('oculto');
+    if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
+    llamadaActiva = null;
+  });
+
   colgarBtn.onclick = () => llamada.close();
 }
+
+// INICIAR TODO
+iniciarTodo();
