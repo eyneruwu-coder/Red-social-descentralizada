@@ -12,7 +12,6 @@ const listaLlamadas = document.getElementById('listaLlamadas');
 const sinChats = document.getElementById('sinChats');
 const sinLlamadas = document.getElementById('sinLlamadas');
 
-// Chat
 const pantallaPrincipal = document.getElementById('pantallaPrincipal');
 const pantallaChat = document.getElementById('pantallaChat');
 const nombreChat = document.getElementById('nombreChat');
@@ -27,7 +26,6 @@ const inputImagen = document.getElementById('inputImagen');
 const inputVideo = document.getElementById('inputVideo');
 const opcionesEnvio = document.querySelectorAll('.opcion-envio');
 
-// Llamadas
 const pantallaLlamada = document.getElementById('pantallaLlamada');
 const pantallaLlamadaEntrante = document.getElementById('pantallaLlamadaEntrante');
 const estadoLlamada = document.getElementById('estadoLlamada');
@@ -36,6 +34,10 @@ const btnColgar = document.getElementById('btnColgar');
 const btnResponder = document.getElementById('btnResponder');
 const btnRechazar = document.getElementById('btnRechazar');
 const audioRemoto = document.getElementById('audioRemoto');
+
+const visorCompleto = document.getElementById('visorCompleto');
+const contenidoVisor = document.getElementById('contenidoVisor');
+const btnCerrarVisor = document.getElementById('btnCerrarVisor');
 
 // ESTADO GLOBAL
 let peer = null;
@@ -47,10 +49,11 @@ let conexiones = {};
 let llamadaActiva = null;
 let flujoLocal = null;
 let reconectarTiempo = null;
+let grabandoAudio = false;
+let grabadoraActiva = null;
+let flujoGrabacion = null;
 
-// ==============================================
-// BASE DE DATOS LOCAL — TODO SE GUARDA AQUÍ
-// ==============================================
+// BASE DE DATOS LOCAL
 function iniciarDB() {
   return new Promise((res, rej) => {
     const solicitud = indexedDB.open('CodexDB', 1);
@@ -127,29 +130,23 @@ async function leerLlamadas() {
   });
 }
 
-// ==============================================
-// INICIO — CARGA TODO LO GUARDADO
-// ==============================================
+// INICIO
 async function iniciar() {
   await iniciarDB();
   
-  // Cargar número guardado
   const numeroGuardado = await leerValor('miNumero');
   if (numeroGuardado) {
     miNumeroInput.value = numeroGuardado;
     setTimeout(() => conectar(numeroGuardado), 500);
   }
 
-  // Cargar contactos, mensajes y llamadas GUARDADOS
   contactos = await leerChats();
   renderizarListaChats();
   renderizarListaContactos();
   renderizarListaLlamadas();
 }
 
-// ==============================================
-// CONEXIÓN CORREGIDA
-// ==============================================
+// CONEXIÓN
 async function conectar(numero) {
   if (!numero) return;
 
@@ -171,7 +168,7 @@ async function conectar(numero) {
     btnConectar.textContent = 'Conectado';
     estadoConexion.textContent = '● En línea';
     estadoConexion.className = 'estado-texto estado-conectado';
-    miNumeroInput.readOnly = true; // Bloquea SOLO cuando conecta bien
+    miNumeroInput.readOnly = true;
   });
 
   peer.on('connection', manejarConexionEntrante);
@@ -179,7 +176,7 @@ async function conectar(numero) {
 
   peer.on('error', err => {
     console.error('Error de conexión:', err);
-    miNumeroInput.readOnly = false; // Desbloquea si falla
+    miNumeroInput.readOnly = false;
     btnConectar.disabled = false;
     btnConectar.textContent = 'Reintentar';
     
@@ -199,9 +196,7 @@ btnConectar.addEventListener('click', () => {
   conectar(numero);
 });
 
-// ==============================================
-// ✅ MENÚ INFERIOR — FUNCIONA BIEN
-// ==============================================
+// MENÚ INFERIOR
 itemsMenu.forEach(item => {
   item.addEventListener('click', () => {
     const nombre = item.dataset.pestana;
@@ -210,9 +205,7 @@ itemsMenu.forEach(item => {
   });
 });
 
-// ==============================================
 // AGREGAR USUARIO
-// ==============================================
 btnAgregarUsuario.addEventListener('click', () => {
   const numero = numeroDestinoInput.value.trim();
   if (!numero || numero === miId) { alert('Escribe un número válido'); return; }
@@ -227,6 +220,7 @@ btnAgregarUsuario.addEventListener('click', () => {
       renderizarListaContactos();
       abrirChat(numero);
     });
+    conn.on('data', d => procesarMensajeRecibido(d, numero));
     conn.on('error', () => alert('No se pudo conectar. El usuario debe estar en línea.'));
   } else {
     alert('Primero conéctate con tu número');
@@ -284,33 +278,31 @@ function renderizarListaLlamadas() {
   });
 }
 
-// ==============================================
-// ✅ ABRIR CHAT — BARRA DE ENVÍO APARECE
-// ==============================================
+// ABRIR/ CERRAR CHAT
 function abrirChat(numero) {
   chatActivo = numero;
   nombreChat.textContent = numero;
   cajaMensajes.innerHTML = '';
 
-  // Conectar si no estamos conectados
   if (peer && peer.open && !conexiones[numero]) {
     const conn = peer.connect(numero);
     conn.on('open', () => conexiones[numero] = conn);
     conn.on('data', d => procesarMensajeRecibido(d, numero));
   }
 
-  // CARGAR TODOS LOS MENSAJES GUARDADOS
   if (contactos[numero]?.mensajes) {
     contactos[numero].mensajes.forEach(m => renderizarMensaje(m));
   }
 
   pantallaPrincipal.classList.remove('activa');
   pantallaChat.classList.add('activa');
+  document.body.classList.add('con-chat-abierto');
 }
 
 btnVolver.addEventListener('click', () => {
   pantallaChat.classList.remove('activa');
   pantallaPrincipal.classList.add('activa');
+  document.body.classList.remove('con-chat-abierto');
   chatActivo = null;
   renderizarListaChats();
 });
@@ -329,10 +321,18 @@ opcionesEnvio.forEach(boton => {
   });
 });
 
-// Enviar texto
-btnEnviar.addEventListener('click', enviarMensaje);
+// ENVIAR MENSAJES
+btnEnviar.addEventListener('click', e => {
+  const texto = inputMensaje.value.trim();
+  if (texto) {
+    enviarMensaje();
+  } else if (chatActivo) {
+    grabarYEnviarAudio();
+  }
+});
+
 inputMensaje.addEventListener('keydown', e => {
-  if (e.key === 'Enter') enviarMensaje();
+  if (e.key === 'Enter' && inputMensaje.value.trim()) enviarMensaje();
 });
 
 async function enviarMensaje() {
@@ -345,8 +345,6 @@ async function enviarMensaje() {
   };
 
   if (conexiones[chatActivo]?.open) conexiones[chatActivo].send(mensaje);
-  
-  // ✅ GUARDA EN INDEXEDDB — QUEDA PERMANENTE
   await guardarChat(chatActivo, mensaje);
   if (!contactos[chatActivo]) contactos[chatActivo] = { mensajes: [] };
   contactos[chatActivo].mensajes.push(mensaje);
@@ -356,7 +354,6 @@ async function enviarMensaje() {
   renderizarListaChats();
 }
 
-// Enviar imagen/video
 inputImagen.addEventListener('change', async e => {
   const archivo = e.target.files[0];
   if (!archivo || !chatActivo) return;
@@ -382,24 +379,65 @@ inputVideo.addEventListener('change', async e => {
 });
 
 async function grabarYEnviarAudio() {
+  if (!chatActivo || grabandoAudio) return;
+
   try {
-    const flujo = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const grabadora = new MediaRecorder(flujo);
-    let datos = null;
-    grabadora.ondataavailable = e => datos = e.data;
-    grabadora.onstop = async () => {
-      const base64 = await leerArchivoComoBase64(datos);
-      const mensaje = { tipo: 'audio', de: miId, para: chatActivo, datos: base64, propio: true, fecha: Date.now() };
+    flujoGrabacion = await navigator.mediaDevices.getUserMedia({ audio: true });
+    grabadoraActiva = new MediaRecorder(flujoGrabacion);
+    let datosAudio = null;
+
+    grabadoraActiva.ondataavailable = e => datosAudio = e.data;
+    grabadoraActiva.onstop = async () => {
+      if (!datosAudio) return;
+      
+      const base64 = await leerArchivoComoBase64(datosAudio);
+      const mensaje = {
+        tipo: 'audio', de: miId, para: chatActivo,
+        datos: base64, propio: true, fecha: Date.now()
+      };
+      
       if (conexiones[chatActivo]?.open) conexiones[chatActivo].send(mensaje);
       await guardarChat(chatActivo, mensaje);
+      if (!contactos[chatActivo]) contactos[chatActivo] = { mensajes: [] };
       contactos[chatActivo].mensajes.push(mensaje);
       renderizarMensaje(mensaje);
-      flujo.getTracks().forEach(t => t.stop());
+      
+      flujoGrabacion.getTracks().forEach(t => t.stop());
+      grabandoAudio = false;
+      flujoGrabacion = null;
+      grabadoraActiva = null;
+      inputMensaje.placeholder = 'Escribe un mensaje...';
     };
-    grabadora.start();
-    alert('Grabando... pulsa Aceptar para detener (5 segundos)');
-    setTimeout(() => grabadora.stop(), 5000);
-  } catch { alert('Permiso de micrófono denegado'); }
+
+    grabandoAudio = true;
+    inputMensaje.placeholder = '🔊 Grabando... suelta para enviar';
+    grabadoraActiva.start();
+
+    const detenerGrabacion = () => {
+      if (grabadoraActiva && grabandoAudio && grabadoraActiva.state === 'recording') {
+        grabadoraActiva.stop();
+      }
+      btnEnviar.removeEventListener('mouseup', detenerGrabacion);
+      btnEnviar.removeEventListener('touchend', detenerGrabacion);
+      document.removeEventListener('mouseup', detenerGrabacion);
+      document.removeEventListener('touchend', detenerGrabacion);
+    };
+
+    btnEnviar.addEventListener('mouseup', detenerGrabacion);
+    btnEnviar.addEventListener('touchend', detenerGrabacion);
+    document.addEventListener('mouseup', detenerGrabacion);
+    document.addEventListener('touchend', detenerGrabacion);
+
+    setTimeout(() => {
+      if (grabandoAudio && grabadoraActiva?.state === 'recording') {
+        grabadoraActiva.stop();
+      }
+    }, 60000);
+
+  } catch {
+    alert('Permiso de micrófono denegado');
+    grabandoAudio = false;
+  }
 }
 
 function leerArchivoComoBase64(archivo) {
@@ -428,9 +466,7 @@ function renderizarMensaje(m) {
   cajaMensajes.scrollTop = cajaMensajes.scrollHeight;
 }
 
-// ==============================================
-// RECIBIR MENSAJES — SE GUARDAN AUTOMÁTICAMENTE
-// ==============================================
+// RECIBIR MENSAJES — CONEXIÓN BIDIRECCIONAL
 function manejarConexionEntrante(conn) {
   const numero = conn.peer;
   conexiones[numero] = conn;
@@ -438,6 +474,14 @@ function manejarConexionEntrante(conn) {
 
   conn.on('data', datos => procesarMensajeRecibido(datos, numero));
   conn.on('close', () => delete conexiones[numero]);
+
+  if (!conexiones[numero]?.open && peer && peer.open) {
+    const connSalida = peer.connect(numero);
+    connSalida.on('open', () => {
+      conexiones[numero] = connSalida;
+    });
+    connSalida.on('data', datos => procesarMensajeRecibido(datos, numero));
+  }
   
   renderizarListaChats();
   renderizarListaContactos();
@@ -455,9 +499,24 @@ async function procesarMensajeRecibido(datos, deNumero) {
   renderizarListaChats();
 }
 
-// ==============================================
+// VISOR PANTALLA COMPLETA
+btnCerrarVisor.addEventListener('click', () => {
+  visorCompleto.classList.add('oculto');
+  contenidoVisor.innerHTML = '';
+});
+
+document.addEventListener('click', e => {
+  if (e.target.matches('.mensaje img') || e.target.matches('.mensaje video')) {
+    e.preventDefault();
+    const elemento = e.target.cloneNode(true);
+    elemento.controls = true;
+    contenidoVisor.innerHTML = '';
+    contenidoVisor.appendChild(elemento);
+    visorCompleto.classList.remove('oculto');
+  }
+});
+
 // LLAMADAS
-// ==============================================
 btnLlamar.addEventListener('click', async () => {
   if (!chatActivo || !conexiones[chatActivo]?.open) {
     alert('El usuario debe estar conectado para llamar');
@@ -482,7 +541,7 @@ function manejarLlamadaEntrante(llamada) {
     manejarLlamadaComun(llamada, llamada.peer, 'entrante');
   };
 
-  btnRechazar.onclick = () => {
+    btnRechazar.onclick = () => {
     llamada.close();
     pantallaLlamadaEntrante.classList.remove('activa');
     pantallaPrincipal.classList.add('activa');
@@ -519,3 +578,4 @@ btnColgar.addEventListener('click', () => {
 
 // INICIAR TODO
 iniciar();
+
