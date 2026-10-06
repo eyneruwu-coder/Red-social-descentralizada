@@ -57,9 +57,9 @@
       </div>
     </div>
 
-    <!-- ✅ MENÚ INFERIOR FLOTANTE -->
+    <!-- MENÚ INFERIOR FLOTANTE -->
     <nav class="menu-inferior">
-      <button class="item-menu activo" data-pestana="chats">
+      <button class="item-menu activa" data-pestana="chats">
         <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
         <span>Mensajes</span>
       </button>
@@ -74,7 +74,7 @@
     </nav>
   </main>
 
-  <!-- ✅ VISTA DE CHAT INDIVIDUAL — BARRA DE ENVÍO SIEMPRE VISIBLE -->
+  <!-- VISTA DE CHAT INDIVIDUAL -->
   <aside id="pantallaChat" class="pantalla">
     <header class="cabecera-chat">
       <button class="icono-btn" id="btnVolver">
@@ -104,7 +104,7 @@
       </button>
     </div>
 
-    <!-- ✅ BARRA DE ENVÍO — SIEMPRE VISIBLE AHORA -->
+    <!-- BARRA DE ENVÍO -->
     <div class="barra-envio">
       <button class="icono-btn" id="btnOpciones">
         <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
@@ -140,6 +140,14 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- VISOR IMAGEN/VIDEO EN PANTALLA COMPLETA -->
+  <div id="visorCompleto" class="visor-completo oculto">
+    <button class="cerrar-visor" id="btnCerrarVisor">
+      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+    <div id="contenidoVisor"></div>
   </div>
 
   <!-- INPUTS OCULTOS -->
