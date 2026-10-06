@@ -1,554 +1,606 @@
-// ELEMENTOS DEL DOM
-const miIdentificadorInput = document.getElementById('miIdentificador');
-const conectarBtn = document.getElementById('conectarBtn');
+// ELEMENTOS
+const miNumeroInput = document.getElementById('miNumero');
+const btnConectar = document.getElementById('btnConectar');
 const estadoConexion = document.getElementById('estadoConexion');
-const avisoAuto = document.getElementById('avisoAuto');
-const idDestinoInput = document.getElementById('idDestino');
-const enlazarBtn = document.getElementById('enlazarBtn');
-const listaConectados = document.getElementById('listaConectados');
-const contador = document.getElementById('contador');
-const pendientesInfo = document.getElementById('pendientesInfo');
-const mensajeInput = document.getElementById('mensajeInput');
-const publicarBtn = document.getElementById('publicarBtn');
-const muro = document.getElementById('muro');
-const grabarBtn = document.getElementById('grabarBtn');
-const detenerBtn = document.getElementById('detenerBtn');
-const enviarAudioBtn = document.getElementById('enviarAudioBtn');
-const llamarBtn = document.getElementById('llamarBtn');
-const colgarBtn = document.getElementById('colgarBtn');
-const responderBtn = document.getElementById('responderBtn');
-const rechazarBtn = document.getElementById('rechazarBtn');
-const llamadaEnCurso = document.getElementById('llamadaEnCurso');
-const llamadaEntrante = document.getElementById('llamadaEntrante');
-const quienLlama = document.getElementById('quienLlama');
+const pestanas = document.querySelectorAll('.pestana');
+const vistas = document.querySelectorAll('.vista-pestana');
+const numeroDestinoInput = document.getElementById('numeroDestino');
+const btnAgregarUsuario = document.getElementById('btnAgregarUsuario');
+const listaContactos = document.getElementById('listaContactos');
+const listaChats = document.getElementById('listaChats');
+const listaLlamadas = document.getElementById('listaLlamadas');
+const sinChats = document.getElementById('sinChats');
+const sinLlamadas = document.getElementById('sinLlamadas');
+
+// Chat
+const pantallaPrincipal = document.getElementById('pantallaPrincipal');
+const pantallaChat = document.getElementById('pantallaChat');
+const nombreChat = document.getElementById('nombreChat');
+const cajaMensajes = document.getElementById('cajaMensajes');
+const btnVolver = document.getElementById('btnVolver');
+const btnLlamar = document.getElementById('btnLlamar');
+const btnOpciones = document.getElementById('btnOpciones');
+const menuOpciones = document.getElementById('menuOpciones');
+const inputMensaje = document.getElementById('inputMensaje');
+const btnEnviar = document.getElementById('btnEnviar');
+const inputImagen = document.getElementById('inputImagen');
+const inputVideo = document.getElementById('inputVideo');
+const opcionesEnvio = document.querySelectorAll('.opcion-envio');
+
+// Llamadas
+const pantallaLlamada = document.getElementById('pantallaLlamada');
+const pantallaLlamadaEntrante = document.getElementById('pantallaLlamadaEntrante');
 const estadoLlamada = document.getElementById('estadoLlamada');
+const quienLlama = document.getElementById('quienLlama');
+const btnColgar = document.getElementById('btnColgar');
+const btnResponder = document.getElementById('btnResponder');
+const btnRechazar = document.getElementById('btnRechazar');
 const audioRemoto = document.getElementById('audioRemoto');
 
-let peer;
-let conexiones = [];
+// ESTADO GLOBAL
+let peer = null;
 let miId = '';
-let miNumeroGuardado = '';
-let grabadora;
-let datosAudioBlob = null;
-let baseDatos;
+let baseDatos = null;
+let contactos = {}; // {numero: {nombre, mensajes: []}}
+let chatActivo = null;
+let conexiones = {}; // {numero: conexion}
 let llamadaActiva = null;
 let flujoLocal = null;
 let reconectarTiempo = null;
-let verificacionConexion = null;
 
 // ==============================================
-// INDEXEDDB — BASE DE DATOS LOCAL
+// BASE DE DATOS LOCAL
 // ==============================================
-function iniciarBaseDatos() {
-  return new Promise((resolver, rechazar) => {
-    const solicitud = indexedDB.open('RedDescentralizada', 3);
-    
-    solicitud.onupgradeneeded = (e) => {
+function iniciarDB() {
+  return new Promise((res, rej) => {
+    const solicitud = indexedDB.open('CodexDB', 1);
+    solicitud.onupgradeneeded = e => {
       baseDatos = e.target.result;
-      if (!baseDatos.objectStoreNames.contains('config')) {
-        baseDatos.createObjectStore('config');
-      }
-      if (!baseDatos.objectStoreNames.contains('mensajes')) {
-        const msgs = baseDatos.createObjectStore('mensajes', { autoIncrement: true });
-        msgs.createIndex('para', 'para', { unique: false });
-        msgs.createIndex('de', 'de', { unique: false });
-        msgs.createIndex('entregado', 'entregado', { unique: false });
-      }
+      if (!baseDatos.objectStoreNames.contains('perfil')) baseDatos.createObjectStore('perfil');
+      if (!baseDatos.objectStoreNames.contains('chats')) baseDatos.createObjectStore('chats');
+      if (!baseDatos.objectStoreNames.contains('llamadas')) baseDatos.createObjectStore('llamadas', {autoIncrement:true});
     };
-
-    solicitud.onsuccess = (e) => {
-      baseDatos = e.target.result;
-      resolver();
-    };
-    solicitud.onerror = rechazar;
+    solicitud.onsuccess = e => { baseDatos = e.target.result; res(); };
+    solicitud.onerror = rej;
   });
 }
 
-async function guardarConfig(clave, valor) {
-  return new Promise(resolver => {
-    const tx = baseDatos.transaction('config', 'readwrite');
-    tx.objectStore('config').put(valor, clave);
-    tx.oncomplete = resolver;
+async function guardarValor(clave, valor) {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('perfil', 'readwrite');
+    tx.objectStore('perfil').put(valor, clave);
+    tx.oncomplete = res;
   });
 }
 
-async function leerConfig(clave) {
-  return new Promise(resolver => {
-    const tx = baseDatos.transaction('config');
-    const solicitud = tx.objectStore('config').get(clave);
-    solicitud.onsuccess = () => resolver(solicitud.result || null);
+async function leerValor(clave) {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('perfil');
+    const solicitud = tx.objectStore('perfil').get(clave);
+    solicitud.onsuccess = () => res(solicitud.result || null);
   });
 }
 
-async function guardarMensaje(datos) {
-  return new Promise(resolver => {
-    const tx = baseDatos.transaction('mensajes', 'readwrite');
-    tx.objectStore('mensajes').put({ ...datos, fecha: Date.now() });
-    tx.oncomplete = resolver;
-  });
-}
-
-async function leerMensajes() {
-  return new Promise(resolver => {
-    const tx = baseDatos.transaction('mensajes');
-    const todos = tx.objectStore('mensajes').getAll();
-    todos.onsuccess = () => resolver(todos.result);
-  });
-}
-
-async function marcarEntregado(id) {
-  return new Promise(resolver => {
-    const tx = baseDatos.transaction('mensajes', 'readwrite');
-    const solicitud = tx.objectStore('mensajes').get(id);
+async function guardarChat(numero, mensaje) {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('chats', 'readwrite');
+    const solicitud = tx.objectStore('chats').get(numero);
     solicitud.onsuccess = () => {
-      const dato = solicitud.result;
-      dato.entregado = true;
-      tx.objectStore('mensajes').put(dato, id);
+      const chat = solicitud.result || { mensajes: [] };
+      chat.mensajes.push({ ...mensaje, fecha: Date.now() });
+      chat.ultimoMensaje = mensaje.texto || '[Archivo]';
+      chat.ultimaFecha = Date.now();
+      tx.objectStore('chats').put(chat, numero);
+      tx.oncomplete = res;
     };
-    tx.oncomplete = resolver;
   });
 }
 
-async function leerPendientesPara(destino) {
-  const todos = await leerMensajes();
-  return todos.filter(m => m.para === destino && !m.entregado);
+async function leerChats() {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('chats');
+    const todos = tx.objectStore('chats').getAll();
+    todos.onsuccess = () => {
+      const mapa = {};
+      todos.result.forEach((chat, i) => {
+        const numero = todos.result[i].key;
+        mapa[numero] = chat;
+      });
+      res(mapa);
+    };
+  });
+}
+
+async function guardarLlamada(datos) {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('llamadas', 'readwrite');
+    tx.objectStore('llamadas').put({ ...datos, fecha: Date.now() });
+    tx.oncomplete = res;
+  });
+}
+
+async function leerLlamadas() {
+  return new Promise(res => {
+    const tx = baseDatos.transaction('llamadas');
+    const todos = tx.objectStore('llamadas').getAll();
+    todos.onsuccess = () => res(todos.result.reverse());
+  });
 }
 
 // ==============================================
-// CARGA INICIAL + CONEXIÓN AUTOMÁTICA
+// INICIO
 // ==============================================
-async function iniciarTodo() {
-  await iniciarBaseDatos();
+async function iniciar() {
+  await iniciarDB();
   
-  // Recuperar número guardado
-  miNumeroGuardado = await leerConfig('miNumero');
-  const activarAuto = await leerConfig('conexionAutomatica');
-  
-  if (miNumeroGuardado) {
-    miIdentificadorInput.value = miNumeroGuardado;
-    
-    // Conectar automáticamente si está activado
-    if (activarAuto !== false) {
-      avisoAuto.classList.remove('oculto');
-      await conectarConIdentidad(miNumeroGuardado);
-    }
-  } else {
-    avisoAuto.textContent = 'Escribe tu número para empezar';
+  // Cargar número guardado
+  const numeroGuardado = await leerValor('miNumero');
+  if (numeroGuardado) {
+    miNumeroInput.value = numeroGuardado;
+    // Intentar reconectar automáticamente
+    setTimeout(() => conectar(numeroGuardado), 500);
   }
 
-  // Cargar historial
-  const historial = await leerMensajes();
-  historial.sort((a, b) => a.fecha - b.fecha);
-  historial.forEach(m => {
-    if (m.tipo === 'texto') {
-      agregarMensajeUI(m.de, m.texto, m.de === miId, m.entregado);
-    } else if (m.tipo === 'audio') {
-      agregarAudioUI(m.de, m.datos, m.de === miId, m.entregado);
-    }
-  });
+  // Cargar contactos y chats
+  contactos = await leerChats();
+  renderizarListaChats();
+  renderizarListaContactos();
+  renderizarListaLlamadas();
 }
 
 // ==============================================
-// FUNCIÓN CENTRAL DE CONEXIÓN
+// CONEXIÓN — CORREGIDA SIN BUG
 // ==============================================
-async function conectarConIdentidad(numero) {
+async function conectar(numero) {
   if (!numero) return;
-  
+
   // Limpiar intentos anteriores
   if (reconectarTiempo) clearTimeout(reconectarTiempo);
-  if (verificacionConexion) clearInterval(verificacionConexion);
   if (peer) peer.destroy();
-  
+
   miId = numero;
-  await guardarConfig('miNumero', numero);
-  await guardarConfig('conexionAutomatica', true); // Activar auto para próximas veces
+  await guardarValor('miNumero', numero);
 
-  conectarBtn.disabled = true;
-  conectarBtn.textContent = 'Conectando...';
-  miIdentificadorInput.disabled = true;
-  avisoAuto.textContent = '🔄 Estableciendo conexión...';
+  btnConectar.disabled = true;
+  btnConectar.textContent = 'Conectando...';
+  miNumeroInput.readOnly = true;
+  estadoConexion.textContent = 'Conectando...';
+  estadoConexion.className = 'estado-texto estado-reintentando';
 
-  // CREAR CONEXIÓN CON NUESTRO NÚMERO
   peer = new Peer(miId);
 
-  peer.on('open', async (idAsignado) => {
-    miId = idAsignado;
-    conectarBtn.textContent = '✅ En línea';
-    estadoConexion.textContent = `Conectado como: ${miId}`;
-    estadoConexion.className = 'resaltado conectado';
-    avisoAuto.textContent = '✅ Conexión automática activa';
-    
-    // Enviar pendientes
-    await entregarPendientes();
-    
-    // Iniciar verificación de conexión cada 15s
-    verificacionConexion = setInterval(() => {
-      verificarConexionesActivas();
-    }, 15000);
+  peer.on('open', id => {
+    miId = id;
+    btnConectar.textContent = 'Conectado';
+    estadoConexion.textContent = '● En línea';
+    estadoConexion.className = 'estado-texto estado-conectado';
   });
 
   peer.on('connection', manejarConexionEntrante);
   peer.on('call', manejarLlamadaEntrante);
 
-  peer.on('error', (err) => {
+  peer.on('error', err => {
     console.error('Error de conexión:', err);
     
     if (err.type === 'unavailable-id') {
-      estadoConexion.textContent = '⚠️ Número activo en otro dispositivo';
-      estadoConexion.className = 'resaltado desconectado';
-      avisoAuto.textContent = 'Desconecta del otro dispositivo primero';
-      conectarBtn.disabled = false;
-      conectarBtn.textContent = 'Reintentar';
-      miIdentificadorInput.disabled = false;
-    } else if (err.type === 'network' || err.type === 'disconnected') {
-      estadoConexion.textContent = '🔌 Sin red — reconectando...';
-      estadoConexion.className = 'resaltado desconectado';
-      reconectarTiempo = setTimeout(() => conectarConIdentidad(numero), 5000);
+      btnConectar.disabled = false;
+      btnConectar.textContent = 'Reintentar';
+      miNumeroInput.readOnly = false;
+      estadoConexion.textContent = 'Número activo en otro dispositivo';
+      estadoConexion.className = 'estado-texto estado-desconectado';
     } else {
-      estadoConexion.textContent = `Error: ${err.type}`;
-      reconectarTiempo = setTimeout(() => conectarConIdentidad(numero), 8000);
+      btnConectar.disabled = false;
+      btnConectar.textContent = 'Reconectar';
+      estadoConexion.textContent = 'Desconectado — toca para reintentar';
+      estadoConexion.className = 'estado-texto estado-desconectado';
     }
   });
 }
 
-// Botón manual — ahora también activa auto
-conectarBtn.addEventListener('click', async () => {
-  const numero = miIdentificadorInput.value.trim();
+btnConectar.addEventListener('click', () => {
+  const numero = miNumeroInput.value.trim();
   if (!numero) {
     alert('Escribe tu número primero');
     return;
   }
-  await conectarConIdentidad(numero);
+  conectar(numero);
 });
 
 // ==============================================
-// DETECCIÓN DE DESCONEXIÓN — LA CORRECCIÓN PRINCIPAL
+// PESTAÑAS
 // ==============================================
-function verificarConexionesActivas() {
-  conexiones = conexiones.filter(conn => {
-    if (!conn.open) {
-      console.log('Conexión cerrada con:', conn.peerId);
-      return false;
-    }
-    return true;
+pestanas.forEach(pestaña => {
+  pestaña.addEventListener('click', () => {
+    const nombre = pestaña.dataset.pestana;
+    pestanas.forEach(p => p.classList.toggle('activa', p === pestaña));
+    vistas.forEach(v => v.classList.toggle('activa', v.id === `vista-${nombre}`));
   });
-  actualizarLista();
-}
-
-// AVISAR DESPEDIDA AL CERRAR LA PÁGINA
-window.addEventListener('beforeunload', () => {
-  // Avisar a todos que nos vamos
-  conexiones.forEach(conn => {
-    if (conn.open) {
-      try {
-        conn.send({ tipo: 'despedida', de: miId });
-        conn.close();
-      } catch (e) {}
-    }
-  });
-  if (peer) peer.destroy();
-  if (verificacionConexion) clearInterval(verificacionConexion);
 });
 
 // ==============================================
-// CONECTAR CON OTROS
+// AGREGAR USUARIO
 // ==============================================
-enlazarBtn.addEventListener('click', async () => {
-  const destino = idDestinoInput.value.trim();
-  if (!destino || !peer) return;
-  
-  const conn = peer.connect(destino, { reliable: true });
-  conn.on('open', async () => {
-    manejarConexion(conn);
-    await entregarPendientesA(conn, destino);
-    llamarBtn.disabled = false;
-    llamarBtn.dataset.destino = destino;
-  });
-  conn.on('error', (err) => {
-    console.log('Error al conectar con', destino, err);
-  });
-});
-
-async function manejarConexionEntrante(conn) {
-  manejarConexion(conn);
-  conn.on('open', async () => {
-    await entregarPendientesA(conn, miId);
-    llamarBtn.disabled = false;
-    llamarBtn.dataset.destino = conn.peer;
-  });
-}
-
-function manejarConexion(conn) {
-  // Evitar duplicados
-  if (conexiones.some(c => c.peerId === conn.peer)) return;
-  
-  conn.peerId = conn.peer;
-  conexiones.push(conn);
-  actualizarLista();
-
-  conn.on('data', async (recibido) => {
-    // Se despide → lo quitamos ya
-    if (recibido.tipo === 'despedida') {
-      conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
-      actualizarLista();
-      return;
-    }
-
-    if (recibido.tipo === 'texto' || recibido.tipo === 'audio') {
-      await guardarMensaje({ ...recibido, entregado: true });
-      
-      if (recibido.tipo === 'texto') {
-        agregarMensajeUI(recibido.de, recibido.texto, false, true);
-      } else {
-        agregarAudioUI(recibido.de, recibido.datos, false, true);
-      }
-    }
-    
-    if (recibido.tipo === 'solicitud-pendientes') {
-      const pendientes = await leerPendientesPara(recibido.de);
-      for (const m of pendientes) {
-        conn.send({
-          tipo: m.tipo,
-          de: miId,
-          para: recibido.de,
-          texto: m.texto || null,
-          datos: m.datos || null,
-          entregado: true
-        });
-        // Marcar como entregado por ID si existe
-        if (m.id) await marcarEntregado(m.id);
-      }
-    }
-  });
-
-  conn.on('close', () => {
-    conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
-    actualizarLista();
-    llamarBtn.disabled = conexiones.length === 0;
-  });
-
-  conn.on('error', () => {
-    conexiones = conexiones.filter(c => c.peerId !== conn.peerId);
-    actualizarLista();
-    llamarBtn.disabled = conexiones.length === 0;
-  });
-}
-
-function actualizarLista() {
-  listaConectados.innerHTML = '';
-  contador.textContent = conexiones.length;
-  
-  conexiones.forEach(c => {
-    const li = document.createElement('li');
-    li.innerHTML = `
-      <span>🔗 ${c.peerId}</span>
-      <span class="estado-usuario">● En línea</span>
-    `;
-    listaConectados.appendChild(li);
-  });
-
-  if (conexiones.length === 0) {
-    llamarBtn.disabled = true;
-  }
-}
-
-// ==============================================
-// MENSAJES PENDIENTES Y ENTREGA
-// ==============================================
-async function entregarPendientesA(conn, destino) {
-  conn.send({ tipo: 'solicitud-pendientes', de: miId, para: destino });
-}
-
-async function entregarPendientes() {
-  for (const conn of conexiones) {
-    await entregarPendientesA(conn, conn.peerId);
-  }
-}
-
-// Enviar texto
-publicarBtn.addEventListener('click', async () => {
-  const texto = mensajeInput.value.trim();
-  if (!texto || !peer) return;
-
-  if (conexiones.length === 0) {
-    alert('Conéctate con alguien primero escribiendo su número');
+btnAgregarUsuario.addEventListener('click', () => {
+  const numero = numeroDestinoInput.value.trim();
+  if (!numero || numero === miId) {
+    alert('Escribe un número válido');
     return;
   }
 
-  const destino = conexiones[0].peerId;
-  const paquete = {
-    tipo: 'texto',
-    de: miId,
-    para: destino,
-    texto: texto,
-    entregado: false
-  };
-
-  let enviado = false;
-  for (const conn of conexiones) {
-    if (conn.peerId === destino && conn.open) {
-      conn.send({ ...paquete, entregado: true });
-      enviado = true;
-      break;
-    }
+  if (!contactos[numero]) {
+    contactos[numero] = { mensajes: [] };
   }
 
-  await guardarMensaje({ ...paquete, entregado: enviado });
-  agregarMensajeUI('Tú', texto, true, enviado);
-  
-  mensajeInput.value = '';
-  actualizarPendientesInfo();
+  // Conectar con el usuario
+  if (peer && peer.open) {
+    const conn = peer.connect(numero);
+    conn.on('open', () => {
+      conexiones[numero] = conn;
+      renderizarListaChats();
+      renderizarListaContactos();
+      abrirChat(numero);
+    });
+    conn.on('error', () => {
+      alert('No se pudo conectar. El usuario debe estar en línea.');
+    });
+  } else {
+    alert('Primero conéctate con tu número');
+  }
+
+  numeroDestinoInput.value = '';
 });
 
-function agregarMensajeUI(de, texto, esPropio, entregado) {
-  const div = document.createElement('div');
-  div.className = `mensaje ${esPropio ? 'propio' : ''} ${entregado ? 'entregado' : 'pendiente'}`;
-  div.innerHTML = `<strong>${de}:</strong><br>${texto}${entregado ? '' : '<br><em>⌛ Pendiente — se entregará cuando se conecte</em>'}`;
-  muro.prepend(div);
+function renderizarListaContactos() {
+  listaContactos.innerHTML = '';
+  Object.keys(contactos).forEach(numero => {
+    const div = document.createElement('div');
+    div.className = 'item-contacto';
+    div.innerHTML = `
+      <div class="nombre-contacto">${numero}</div>
+      <div class="info-mensaje">${contactos[numero].ultimoMensaje || 'Sin mensajes'}</div>
+    `;
+    div.addEventListener('click', () => abrirChat(numero));
+    listaContactos.appendChild(div);
+  });
 }
 
-function actualizarPendientesInfo() {
-  leerMensajes().then(todos => {
-    const pend = todos.filter(m => m.de === miId && !m.entregado).length;
-    pendientesInfo.textContent = pend > 0 ? `📦 ${pend} mensajes pendientes — se entregarán al reconectar` : '';
+function renderizarListaChats() {
+  listaChats.innerHTML = '';
+  const hayChats = Object.keys(contactos).length > 0;
+  sinChats.classList.toggle('oculto', hayChats);
+  
+  Object.entries(contactos)
+    .sort((a, b) => (b[1].ultimaFecha || 0) - (a[1].ultimaFecha || 0))
+    .forEach(([numero, datos]) => {
+      const div = document.createElement('div');
+      div.className = 'item-chat';
+      div.innerHTML = `
+        <div class="nombre-contacto">${numero}</div>
+        <div class="info-mensaje">${datos.ultimoMensaje || 'Sin mensajes'}</div>
+      `;
+      div.addEventListener('click', () => abrirChat(numero));
+      listaChats.appendChild(div);
+    });
+}
+
+function renderizarListaLlamadas() {
+  listaLlamadas.innerHTML = '';
+  leerLlamadas().then(llamadas => {
+    sinLlamadas.classList.toggle('oculto', llamadas.length > 0);
+    llamadas.forEach(l => {
+      const div = document.createElement('div');
+      div.className = `item-llamada ${l.tipo === 'entrante' ? 'llamada-entrante' : 'llamada-saliente'}`;
+      div.innerHTML = `
+        <div class="nombre-contacto">${l.numero}</div>
+        <div class="info-mensaje">${l.fecha ? new Date(l.fecha).toLocaleString() : ''} — ${l.estado}</div>
+      `;
+      listaLlamadas.appendChild(div);
+    });
   });
 }
 
 // ==============================================
-// AUDIO
+// VISTA DE CHAT
 // ==============================================
-grabarBtn.addEventListener('click', async () => {
-  try {
-    flujoLocal = await navigator.mediaDevices.getUserMedia({ audio: true });
-    grabadora = new MediaRecorder(flujoLocal);
-    datosAudioBlob = null;
+function abrirChat(numero) {
+  chatActivo = numero;
+  nombreChat.textContent = numero;
+  cajaMensajes.innerHTML = '';
 
-    grabadora.ondataavailable = (e) => datosAudioBlob = e.data;
-    grabadora.onstop = () => {
-      grabarBtn.disabled = false;
-      detenerBtn.disabled = true;
-      enviarAudioBtn.disabled = !datosAudioBlob;
-      if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
+  // Conectar si no lo estamos
+  if (peer && peer.open && !conexiones[numero]) {
+    const conn = peer.connect(numero);
+    conn.on('open', () => conexiones[numero] = conn);
+    conn.on('data', d => procesarMensajeRecibido(d, numero));
+  }
+
+  // Cargar mensajes guardados
+  if (contactos[numero]?.mensajes) {
+    contactos[numero].mensajes.forEach(m => renderizarMensaje(m));
+  }
+
+  pantallaPrincipal.classList.remove('activa');
+  pantallaChat.classList.add('activa');
+}
+
+btnVolver.addEventListener('click', () => {
+  pantallaChat.classList.remove('activa');
+  pantallaPrincipal.classList.add('activa');
+  chatActivo = null;
+  renderizarListaChats();
+});
+
+btnOpciones.addEventListener('click', () => {
+  menuOpciones.classList.toggle('mostrar');
+});
+
+opcionesEnvio.forEach(boton => {
+  boton.addEventListener('click', () => {
+    const tipo = boton.dataset.tipo;
+    menuOpciones.classList.remove('mostrar');
+    
+    if (tipo === 'imagen') {
+      inputImagen.click();
+    } else if (tipo === 'video') {
+      inputVideo.click();
+    } else if (tipo === 'audio') {
+      grabarYEnviarAudio();
+    }
+  });
+});
+
+// Enviar texto
+btnEnviar.addEventListener('click', enviarMensaje);
+inputMensaje.addEventListener('keydown', e => {
+  if (e.key === 'Enter') enviarMensaje();
+});
+
+async function enviarMensaje() {
+  const texto = inputMensaje.value.trim();
+  if (!texto || !chatActivo) return;
+
+  const mensaje = {
+    tipo: 'texto',
+    de: miId,
+    para: chatActivo,
+    texto: texto,
+    propio: true,
+    fecha: Date.now()
+  };
+
+  // Enviar si hay conexión
+  if (conexiones[chatActivo]?.open) {
+    conexiones[chatActivo].send(mensaje);
+  }
+
+  // Guardar y mostrar
+  await guardarChat(chatActivo, mensaje);
+  if (!contactos[chatActivo]) contactos[chatActivo] = { mensajes: [] };
+  contactos[chatActivo].mensajes.push(mensaje);
+  renderizarMensaje(mensaje);
+  
+  inputMensaje.value = '';
+  renderizarListaChats();
+}
+
+// Enviar imagen/video
+inputImagen.addEventListener('change', async e => {
+  const archivo = e.target.files[0];
+  if (!archivo || !chatActivo) return;
+  
+  const datos = await leerArchivoComoBase64(archivo);
+  const mensaje = {
+    tipo: 'imagen',
+    de: miId,
+    para: chatActivo,
+    datos: datos,
+    propio: true,
+    fecha: Date.now()
+  };
+
+  if (conexiones[chatActivo]?.open) conexiones[chatActivo].send(mensaje);
+  await guardarChat(chatActivo, mensaje);
+  contactos[chatActivo].mensajes.push(mensaje);
+  renderizarMensaje(mensaje);
+  inputImagen.value = '';
+});
+
+inputVideo.addEventListener('change', async e => {
+  const archivo = e.target.files[0];
+  if (!archivo || !chatActivo) return;
+  
+  const datos = await leerArchivoComoBase64(archivo);
+  const mensaje = {
+    tipo: 'video',
+    de: miId,
+    para: chatActivo,
+    datos: datos,
+    propio: true,
+    fecha: Date.now()
+  };
+
+  if (conexiones[chatActivo]?.open) conexiones[chatActivo].send(mensaje);
+  await guardarChat(chatActivo, mensaje);
+  contactos[chatActivo].mensajes.push(mensaje);
+  renderizarMensaje(mensaje);
+  inputVideo.value = '';
+});
+
+async function grabarYEnviarAudio() {
+  try {
+    const flujo = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const grabadora = new MediaRecorder(flujo);
+    let datos = null;
+
+    grabadora.ondataavailable = e => datos = e.data;
+    grabadora.onstop = async () => {
+      const base64 = await leerArchivoComoBase64(datos);
+      const mensaje = {
+        tipo: 'audio',
+        de: miId,
+        para: chatActivo,
+        datos: base64,
+        propio: true,
+        fecha: Date.now()
+      };
+      
+      if (conexiones[chatActivo]?.open) conexiones[chatActivo].send(mensaje);
+      await guardarChat(chatActivo, mensaje);
+      contactos[chatActivo].mensajes.push(mensaje);
+      renderizarMensaje(mensaje);
+      flujo.getTracks().forEach(t => t.stop());
     };
 
     grabadora.start();
-    grabarBtn.disabled = true;
-    detenerBtn.disabled = false;
+    alert('Grabando... pulsa aceptar para detener');
+    setTimeout(() => grabadora.stop(), 5000); // Máx 5s por ahora
   } catch {
-    alert('Se necesita permiso al micrófono');
+    alert('Permiso de micrófono denegado');
   }
-});
+}
 
-detenerBtn.addEventListener('click', () => {
-  if (grabadora && grabadora.state !== 'inactive') {
-    grabadora.stop();
-  }
-});
-
-enviarAudioBtn.addEventListener('click', async () => {
-  if (!datosAudioBlob || conexiones.length === 0) {
-    alert('Conéctate primero con alguien');
-    return;
-  }
-
-  const destino = conexiones[0].peerId;
-  const leer = (blob) => new Promise(res => {
+function leerArchivoComoBase64(archivo) {
+  return new Promise(res => {
     const lector = new FileReader();
     lector.onload = () => res(lector.result);
-    lector.readAsDataURL(blob);
+    lector.readAsDataURL(archivo);
   });
-  const datos = await leer(datosAudioBlob);
+}
 
-  const paquete = {
-    tipo: 'audio',
-    de: miId,
-    para: destino,
-    datos: datos,
-    entregado: false
-  };
-
-  let enviado = false;
-  for (const conn of conexiones) {
-    if (conn.peerId === destino && conn.open) {
-      conn.send({ ...paquete, entregado: true });
-      enviado = true;
-      break;
-    }
+function renderizarMensaje(m) {
+  const div = document.createElement('div');
+  div.className = `mensaje ${m.propio ? 'propio' : 'otro'}`;
+  
+  if (m.tipo === 'texto') {
+    div.innerHTML = `
+      <p>${m.texto}</p>
+      <p class="hora">${new Date(m.fecha).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
+    `;
+  } else if (m.tipo === 'imagen') {
+    div.innerHTML = `
+      <img src="${m.datos}" alt="Imagen">
+      <p class="hora">${new Date(m.fecha).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
+    `;
+  } else if (m.tipo === 'video') {
+    div.innerHTML = `
+      <video controls src="${m.datos}"></video>
+      <p class="hora">${new Date(m.fecha).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
+    `;
+  } else if (m.tipo === 'audio') {
+    div.innerHTML = `
+      <audio controls src="${m.datos}">
+      <p class="hora">${new Date(m.fecha).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</p>
+    `;
   }
 
-  await guardarMensaje({ ...paquete, entregado: enviado });
-  agregarAudioUI('Tú', datos, true, enviado);
-  
-  datosAudioBlob = null;
-  enviarAudioBtn.disabled = true;
-  actualizarPendientesInfo();
-});
+  cajaMensajes.appendChild(div);
+  cajaMensajes.scrollTop = cajaMensajes.scrollHeight;
+}
 
-function agregarAudioUI(de, datos, esPropio, entregado) {
-  const div = document.createElement('div');
-  div.className = `mensaje ${esPropio ? 'propio' : ''} ${entregado ? '' : 'pendiente'}`;
-  div.innerHTML = `
-    <strong>${de}:</strong><br>
-    <audio controls src="${datos}">
-    ${entregado ? '' : '<br><em>⌛ Pendiente de entrega</em>'}
-  `;
-  muro.prepend(div);
+// ==============================================
+// RECIBIR MENSAJES
+// ==============================================
+function manejarConexionEntrante(conn) {
+  const numero = conn.peer;
+  conexiones[numero] = conn;
+
+  if (!contactos[numero]) contactos[numero] = { mensajes: [] };
+
+  conn.on('data', datos => procesarMensajeRecibido(datos, numero));
+  conn.on('close', () => delete conexiones[numero]);
+  
+  renderizarListaChats();
+  renderizarListaContactos();
+}
+
+async function procesarMensajeRecibido(datos, deNumero) {
+  if (datos.tipo === 'llamada') return; // manejado por evento de llamada
+
+  datos.propio = false;
+  await guardarChat(deNumero, datos);
+  if (!contactos[deNumero]) contactos[deNumero] = { mensajes: [] };
+  contactos[deNumero].mensajes.push(datos);
+  
+  if (chatActivo === deNumero) {
+    renderizarMensaje(datos);
+  }
+  
+  renderizarListaChats();
 }
 
 // ==============================================
 // LLAMADAS
 // ==============================================
-llamarBtn.addEventListener('click', async () => {
-  const destino = llamarBtn.dataset.destino;
-  if (!destino) return;
-  
+btnLlamar.addEventListener('click', async () => {
+  if (!chatActivo || !conexiones[chatActivo]?.open) {
+    alert('El usuario debe estar conectado para llamar');
+    return;
+  }
+
   flujoLocal = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const llamada = peer.call(destino, flujoLocal);
-  manejarLlamadaComun(llamada);
+  llamadaActiva = peer.call(chatActivo, flujoLocal);
+  manejarLlamadaComun(llamadaActiva, chatActivo, 'saliente');
 });
 
 function manejarLlamadaEntrante(llamada) {
   llamadaActiva = llamada;
   quienLlama.textContent = `Te llama: ${llamada.peer}`;
-  llamadaEntrante.classList.remove('oculto');
+  pantallaChat.classList.remove('activa');
+  pantallaPrincipal.classList.remove('activa');
+  pantallaLlamadaEntrante.classList.add('activa');
 
-  responderBtn.onclick = async () => {
+  btnResponder.onclick = async () => {
     flujoLocal = await navigator.mediaDevices.getUserMedia({ audio: true });
     llamada.answer(flujoLocal);
-    manejarLlamadaComun(llamada);
-    llamadaEntrante.classList.add('oculto');
+    pantallaLlamadaEntrante.classList.remove('activa');
+    manejarLlamadaComun(llamada, llamada.peer, 'entrante');
   };
 
-  rechazarBtn.onclick = () => {
+  btnRechazar.onclick = () => {
     llamada.close();
-    llamadaEntrante.classList.add('oculto');
+    pantallaLlamadaEntrante.classList.remove('activa');
+    pantallaPrincipal.classList.add('activa');
   };
 }
 
-function manejarLlamadaComun(llamada) {
-  llamadaActiva = llamada;
-  llamadaEnCurso.classList.remove('oculto');
+function manejarLlamadaComun(llamada, numero, tipo) {
+  pantallaLlamada.classList.add('activa');
   estadoLlamada.textContent = 'Conectando...';
 
-  llamada.on('stream', (flujoRemoto) => {
+  guardarLlamada({ numero, tipo, estado: 'En curso' }).then(renderizarListaLlamadas);
+
+  llamada.on('stream', flujoRemoto => {
     audioRemoto.srcObject = flujoRemoto;
-    estadoLlamada.textContent = '🔊 En llamada...';
+    estadoLlamada.textContent = 'En llamada';
   });
 
   llamada.on('close', () => {
-    llamadaEnCurso.classList.add('oculto');
-    if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
-    llamadaActiva = null;
+    finalizarLlamada(numero, tipo, 'Finalizada');
   });
 
   llamada.on('error', () => {
-    llamadaEnCurso.classList.add('oculto');
-    if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
-    llamadaActiva = null;
+    finalizarLlamada(numero, tipo, 'Fallida');
   });
-
-  colgarBtn.onclick = () => llamada.close();
 }
 
-// INICIAR TODO
-iniciarTodo();
+function finalizarLlamada(numero, tipo, estado) {
+  pantallaLlamada.classList.remove('activa');
+  if (flujoLocal) flujoLocal.getTracks().forEach(t => t.stop());
+  llamadaActiva = null;
+  guardarLlamada({ numero, tipo, estado }).then(renderizarListaLlamadas);
+  
+  if (chatActivo) {
+    pantallaChat.classList.add('activa');
+  } else {
+    pantallaPrincipal.classList.add('activa');
+  }
+}
+
+btnColgar.addEventListener('click', () => {
+  if (llamadaActiva) llamadaActiva.close();
+});
+
+// ==============================================
+// INICIAR
+// ==============================================
+iniciar();
