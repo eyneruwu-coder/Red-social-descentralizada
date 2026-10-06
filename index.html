@@ -3,103 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CODEC 🌐</title>
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <title>Red P2P</title>
+  <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-
-  <div id="pantalla-carga">
-    <div class="cargando">
-      <h1>CODEC</h1>
-      <p>Conectando a la red descentralizada...</p>
-      <div class="puntos"></div>
-    </div>
+  <h1>Red Descentralizada</h1>
+  
+  <div class="seccion">
+    <label>Tu nombre: <input type="text" id="miNombre" placeholder="Escribe tu nombre"></label>
+    <button id="conectarBtn">Conectar</button>
+    <p>Tu ID: <span id="miId"></span></p>
   </div>
 
-  <div class="app" id="app" style="display: none;">
-
-    <section class="pagina activa" id="pagina-inicio">
-      <header class="cabecera">
-        <h1>CODEC</h1>
-        <p class="subtitulo">Red descentralizada</p>
-      </header>
-
-      <div class="tarjeta publicar-form">
-        <div class="foto-perfil-mini" id="foto-preview-mini"></div>
-        <textarea id="nuevo-texto" placeholder="¿Qué estás pensando?"></textarea>
-        <div class="acciones-publicar">
-          <label class="boton-archivo">
-            <i class="fa-solid fa-image"></i> Imagen/Video
-            <input type="file" id="archivo-entrada" accept="image/*,video/*">
-          </label>
-          <button id="btn-publicar" class="btn-principal">Publicar</button>
-        </div>
-        <div id="vista-previa-archivo" class="vista-previa"></div>
-      </div>
-
-      <div id="muro" class="muro"></div>
-    </section>
-
-    <section class="pagina" id="pagina-chat">
-      <header class="cabecera">
-        <button class="btn-volver" id="volver-chats"><i class="fa-solid fa-arrow-left"></i></button>
-        <h2 id="titulo-chat">Mensajes</h2>
-      </header>
-      <div id="lista-chats" class="lista-conversaciones"></div>
-      <div id="ventana-chat" class="ventana-chat" style="display: none;">
-        <div id="mensajes-chat" class="caja-mensajes"></div>
-        <div class="enviar-mensaje">
-          <input type="text" id="input-mensaje" placeholder="Escribe un mensaje...">
-          <button id="btn-enviar"><i class="fa-solid fa-paper-plane"></i></button>
-        </div>
-      </div>
-    </section>
-
-    <section class="pagina" id="pagina-usuarios">
-      <header class="cabecera">
-        <h2>Comunidad</h2>
-      </header>
-
-      <div class="tarjeta mi-perfil">
-        <h3>Mi Perfil</h3>
-        <div class="form-perfil">
-          <div class="foto-grande">
-            <div class="foto-perfil" id="mi-foto-grande"></div>
-            <label class="cambiar-foto">
-              <i class="fa-solid fa-camera"></i>
-              <input type="file" id="foto-perfil-entrada" accept="image/*">
-            </label>
-          </div>
-          <input type="text" id="input-nombre" placeholder="Nombre">
-          <input type="text" id="input-apellido" placeholder="Apellido">
-          <button id="btn-guardar-perfil" class="btn-principal">Guardar Perfil</button>
-        </div>
-      </div>
-
-      <h3 class="titulo-seccion">Usuarios Activos</h3>
-      <div id="lista-usuarios" class="lista-usuarios"></div>
-    </section>
-
+  <div class="seccion">
+    <label>Conectar a otro usuario: <input type="text" id="idDestino" placeholder="Pega el ID del otro"></label>
+    <button id="enlazarBtn">Enlazar</button>
   </div>
 
-  <nav class="menu-inferior">
-    <button class="item-menu activo" data-pagina="inicio">
-      <i class="fa-solid fa-house"></i>
-    </button>
-    <button class="item-menu" data-pagina="chat">
-      <i class="fa-solid fa-comment"></i>
-      <span class="contador" id="contador-mensajes">0</span>
-    </button>
-    <button class="item-menu" data-pagina="usuarios">
-      <i class="fa-solid fa-users"></i>
-    </button>
-    <div class="centro-menu">CODEC</div>
-  </nav>
+  <div class="seccion">
+    <h3>Usuarios conectados: <span id="contador">0</span></h3>
+    <ul id="listaConectados"></ul>
+  </div>
 
-  <!-- Conexión gratuita — NO necesitas crear nada -->
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.min.js"></script>
-  <script src="./app.js"></script>
+  <div class="seccion">
+    <textarea id="mensajeInput" placeholder="Escribe una publicación..."></textarea>
+    <button id="publicarBtn">Publicar a todos</button>
+  </div>
+
+  <div class="seccion">
+    <h3>Publicaciones:</h3>
+    <div id="muro"></div>
+  </div>
+
+  <!-- Librería PeerJS desde CDN → no necesitas instalar nada -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="logica.js"></script>
 </body>
 </html>
