@@ -1,7 +1,95 @@
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-body { max-width: 700px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-.seccion { background: white; padding: 15px; margin: 10px 0; border-radius: 10px; }
-input, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
-button { background: #2563eb; color: white; border: none; cursor: pointer; font-weight: bold; }
-button:hover { background: #1d4ed8; }
-.mensaje { border-left: 3px solid #2563eb; padding: 10px; margin: 8px 0; background: #f0f4ff; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+body {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #f0f2f5;
+  color: #1a1a1a;
+}
+
+h1 {
+  text-align: center;
+  color: #1d4ed8;
+  margin-bottom: 25px;
+}
+
+.seccion {
+  background: white;
+  padding: 18px;
+  margin: 12px 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+#miId {
+  font-family: monospace;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+ul {
+  list-style: none;
+  margin-top: 10px;
+}
+
+li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.mensaje {
+  border-left: 4px solid #2563eb;
+  padding: 12px;
+  margin: 10px 0;
+  background: #eff6ff;
+  border-radius: 0 10px 10px 0;
+}
+
+.mensaje strong {
+  color: #1e40af;
+}
