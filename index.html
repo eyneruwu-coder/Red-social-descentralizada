@@ -21,49 +21,60 @@
     <div class="seccion-estado">
       <p class="etiqueta">Tu número:</p>
       <div class="fila-numero">
-        <!-- ✅ QUITAMOS readonly → AHORA SÍ DEJA ESCRIBIR -->
         <input type="text" id="miNumero" placeholder="Escribe tu número">
         <button id="btnConectar" class="btn-primario">Conectar</button>
       </div>
       <p id="estadoConexion" class="estado-texto">Desconectado</p>
     </div>
 
-    <!-- PESTAÑAS -->
-    <div class="contenedor-pestanas">
-      <button class="pestana activa" data-pestana="chats">Mensajes</button>
-      <button class="pestana" data-pestana="usuarios">Usuarios</button>
-      <button class="pestana" data-pestana="llamadas">Llamadas</button>
-    </div>
-
-    <!-- LISTA CHATS -->
-    <div class="vista-pestana activa" id="vista-chats">
-      <div id="listaChats"></div>
-      <p id="sinChats" class="texto-vacio">No tienes conversaciones.<br>Ve a "Usuarios" para empezar.</p>
-    </div>
-
-    <!-- AGREGAR USUARIO -->
-    <div class="vista-pestana" id="vista-usuarios">
-      <div class="seccion-agregar">
-        <label>Agregar por número:</label>
-        <div class="fila-input">
-          <input type="text" id="numeroDestino" placeholder="Escribe el número">
-          <button id="btnAgregarUsuario" class="btn-primario">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          </button>
-        </div>
+    <!-- CONTENEDOR DE VISTAS -->
+    <div class="contenedor-vistas">
+      <!-- VISTA MENSAJES -->
+      <div class="vista-pestana activa" id="vista-chats">
+        <div id="listaChats"></div>
+        <p id="sinChats" class="texto-vacio">No tienes conversaciones.<br>Ve a "Usuarios" para empezar.</p>
       </div>
-      <h4>Contactos:</h4>
-      <div id="listaContactos"></div>
+
+      <!-- VISTA USUARIOS -->
+      <div class="vista-pestana" id="vista-usuarios">
+        <div class="seccion-agregar">
+          <label>Agregar por número:</label>
+          <div class="fila-input">
+            <input type="text" id="numeroDestino" placeholder="Escribe el número">
+            <button id="btnAgregarUsuario" class="btn-primario">
+              <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <h4>Contactos:</h4>
+        <div id="listaContactos"></div>
+      </div>
+
+      <!-- VISTA LLAMADAS -->
+      <div class="vista-pestana" id="vista-llamadas">
+        <div id="listaLlamadas"></div>
+        <p id="sinLlamadas" class="texto-vacio">Sin llamadas recientes.</p>
+      </div>
     </div>
 
-    <!-- HISTORIAL LLAMADAS -->
-    <div class="vista-pestana" id="vista-llamadas">
-      <div id="listaLlamadas"></div>
-      <p id="sinLlamadas" class="texto-vacio">Sin llamadas recientes.</p>
-    </div>
+    <!-- ✅ MENÚ INFERIOR FLOTANTE -->
+    <nav class="menu-inferior">
+      <button class="item-menu activo" data-pestana="chats">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <span>Mensajes</span>
+      </button>
+      <button class="item-menu" data-pestana="usuarios">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <span>Usuarios</span>
+      </button>
+      <button class="item-menu" data-pestana="llamadas">
+        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        <span>Llamadas</span>
+      </button>
+    </nav>
   </main>
 
-  <!-- VISTA DE CHAT INDIVIDUAL -->
+  <!-- ✅ VISTA DE CHAT INDIVIDUAL — BARRA DE ENVÍO SIEMPRE VISIBLE -->
   <aside id="pantallaChat" class="pantalla">
     <header class="cabecera-chat">
       <button class="icono-btn" id="btnVolver">
@@ -77,7 +88,7 @@
 
     <div class="caja-mensajes" id="cajaMensajes"></div>
 
-    <!-- OPCIONES ADICIONALES DESPLEGABLES -->
+    <!-- OPCIONES DESPLEGABLES -->
     <div class="opciones-envio" id="menuOpciones">
       <button class="opcion-envio" data-tipo="imagen">
         <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
@@ -93,6 +104,7 @@
       </button>
     </div>
 
+    <!-- ✅ BARRA DE ENVÍO — SIEMPRE VISIBLE AHORA -->
     <div class="barra-envio">
       <button class="icono-btn" id="btnOpciones">
         <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
@@ -130,9 +142,10 @@
     </div>
   </div>
 
-  <!-- INPUTS OCULTOS PARA ARCHIVOS -->
+  <!-- INPUTS OCULTOS -->
   <input type="file" id="inputImagen" accept="image/*" class="oculto">
   <input type="file" id="inputVideo" accept="video/*" class="oculto">
+
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="app.js"></script>
 </body>
