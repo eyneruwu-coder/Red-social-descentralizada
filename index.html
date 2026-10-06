@@ -4,41 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Red Descentralizada</title>
-  <!-- ✅ Nombre CORRECTO: styles.css -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <h1>Red Descentralizada</h1>
   
   <div class="seccion">
-    <label>Tu nombre: <input type="text" id="miNombre" placeholder="Escribe tu nombre"></label>
-    <button id="conectarBtn">Conectar</button>
-    <p>Tu ID: <span id="miId"></span></p>
+    <label>Tu número / identificación única:</label>
+    <input type="text" id="miIdentificador" placeholder="Ej: 12345 o Usuario_789">
+    <button id="conectarBtn">Crear identidad</button>
+    <p class="info">Tu identidad: <span id="tuId" class="resaltado">—</span></p>
+    <p class="ayuda">¡Guárdalo! Con este mismo te podrán encontrar siempre que uses el mismo número</p>
   </div>
 
   <div class="seccion">
-    <label>Conectar a otro usuario: <input type="text" id="idDestino" placeholder="Pega el ID del otro"></label>
-    <button id="enlazarBtn">Enlazar</button>
+    <label>Conectar con otro usuario:</label>
+    <input type="text" id="idDestino" placeholder="Escribe su número o identificación">
+    <button id="enlazarBtn">Conectar</button>
   </div>
 
   <div class="seccion">
-    <h3>Usuarios conectados: <span id="contador">0</span></h3>
+    <h3>Conectados: <span id="contador">0</span></h3>
     <ul id="listaConectados"></ul>
   </div>
 
   <div class="seccion">
-    <textarea id="mensajeInput" placeholder="Escribe una publicación..."></textarea>
-    <button id="publicarBtn">Publicar a todos</button>
+    <textarea id="mensajeInput" placeholder="Escribe un mensaje..."></textarea>
+    <button id="publicarBtn">Enviar mensaje</button>
+    
+    <div class="audio-zona">
+      <button id="grabarBtn">🎙️ Grabar nota de voz</button>
+      <button id="detenerBtn" disabled>⏹️ Detener grabación</button>
+      <button id="enviarAudioBtn" disabled>📤 Enviar nota</button>
+    </div>
   </div>
 
   <div class="seccion">
-    <h3>Publicaciones:</h3>
+    <h3>Conversaciones:</h3>
     <div id="muro"></div>
   </div>
 
-  <!-- Librería PeerJS -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <!-- ✅ Nombre CORRECTO: app.js -->
   <script src="app.js"></script>
 </body>
 </html>
