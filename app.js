@@ -1,4 +1,3 @@
-// 1. Inicializar tu conexión
 const miNombreInput = document.getElementById('miNombre');
 const conectarBtn = document.getElementById('conectarBtn');
 const miIdSpan = document.getElementById('miId');
@@ -10,13 +9,13 @@ const mensajeInput = document.getElementById('mensajeInput');
 const publicarBtn = document.getElementById('publicarBtn');
 const muro = document.getElementById('muro');
 
-let peer;                // Tu identidad en la red
-let conexiones = [];     // Conexiones activas con otros
+let peer;
+let conexiones = [];
 let miNombre = '';
 
 conectarBtn.addEventListener('click', () => {
-  miNombre = miNombreInput.value.trim() || 'Anónimo_' + Math.random().toString(36).substr(2, 4);
-  // Crear tu identidad — usa el servidor de señalización gratuito de PeerJS
+  miNombre = miNombreInput.value.trim() || 'Anonimo_' + Math.random().toString(36).substr(2, 4);
+  
   peer = new Peer();
 
   peer.on('open', (id) => {
@@ -25,28 +24,22 @@ conectarBtn.addEventListener('click', () => {
     conectarBtn.textContent = 'Conectado ✅';
   });
 
-  // Recibir conexiones de otros
   peer.on('connection', manejarConexion);
 
   peer.on('error', (err) => {
-    console.error('Error de conexión:', err);
+    console.error('Error:', err);
     alert('Error: ' + err.type);
   });
 });
 
-// Conectar a alguien más
 enlazarBtn.addEventListener('click', () => {
   const idDestino = idDestinoInput.value.trim();
   if (!idDestino || !peer) return;
   const conn = peer.connect(idDestino);
-  conn.on('open', () => {
-    manejarConexion(conn);
-    console.log('Conectado a:', idDestino);
-  });
+  conn.on('open', () => manejarConexion(conn));
 });
 
 function manejarConexion(conn) {
-  // Evitar duplicados
   if (conexiones.some(c => c.peerId === conn.peer)) return;
   
   conn.peerId = conn.peer;
@@ -56,9 +49,6 @@ function manejarConexion(conn) {
   conn.on('data', (datos) => {
     if (datos.tipo === 'publicacion') {
       agregarAlMuro(datos.autor, datos.texto);
-    }
-    if (datos.tipo === 'presentacion') {
-      // Puedes guardar nombres de otros aquí
     }
   });
 
@@ -85,14 +75,11 @@ publicarBtn.addEventListener('click', () => {
   const datos = {
     tipo: 'publicacion',
     autor: miNombre,
-    texto: texto,
-    tiempo: Date.now()
+    texto: texto
   };
 
-  // Mostrar en tu propio muro
   agregarAlMuro('Tú', texto);
   
-  // Enviar a TODOS los conectados — directo, sin servidor intermedio
   conexiones.forEach(conn => {
     if (conn.open) conn.send(datos);
   });
