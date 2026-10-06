@@ -5,6 +5,7 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 /* PANTALLAS */
 .pantalla { display: none; min-height: 100vh; padding-bottom: 90px; }
 .pantalla.activa { display: block; }
+body.con-chat-abierto .barra-superior { display: none !important; }
 
 /* BARRA SUPERIOR */
 .barra-superior {
@@ -35,7 +36,7 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 .vista-pestana { display: none; }
 .vista-pestana.activa { display: block; }
 
-/* ✅ MENÚ INFERIOR FLOTANTE */
+/* MENÚ INFERIOR FLOTANTE */
 .menu-inferior {
   position: fixed; bottom: 16px; left: 16px; right: 16px;
   display: flex; justify-content: space-around;
@@ -45,16 +46,18 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 .item-menu {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   background: none; border: none; cursor: pointer; color: #888; padding: 4px 12px;
+  transition: all 0.2s;
 }
-.item-menu.activa { color: #2563eb; }
+.item-menu.activa { color: #2563eb; background: #eff6ff; border-radius: 12px; }
 .item-menu svg { width: 22px; height: 22px; fill: currentColor; }
 .item-menu span { font-size: 11px; }
 
 /* LISTAS */
 .item-chat, .item-contacto {
   padding: 14px; border-bottom: 1px solid #eee; cursor: pointer;
+  transition: transform 0.1s, background 0.1s;
 }
-.item-chat:hover, .item-contacto:hover { background: #f9f9f9; }
+.item-chat:active, .item-contacto:active { transform: scale(0.97); background: #dbeafe; }
 .nombre-contacto { font-weight: 500; margin-bottom: 2px; }
 .info-mensaje { font-size: 13px; color: #666; }
 .texto-vacio { text-align: center; color: #888; margin-top: 40px; }
@@ -63,7 +66,7 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 .fila-input { display: flex; gap: 8px; }
 .fila-input input { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; }
 
-/* ✅ PANTALLA DE CHAT */
+/* PANTALLA DE CHAT */
 .cabecera-chat {
   display: flex; align-items: center; gap: 12px; padding: 12px 16px;
   background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100;
@@ -80,10 +83,10 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 }
 .mensaje.propio { background: #dcfce7; margin-left: auto; border-bottom-right-radius: 4px; }
 .mensaje.otro { background: #fff; margin-right: auto; border-bottom-left-radius: 4px; }
-.mensaje img, .mensaje video { max-width: 100%; border-radius: 8px; margin-top: 4px; }
+.mensaje img, .mensaje video { max-width: 100%; border-radius: 8px; margin-top: 4px; cursor: pointer; }
 .hora { font-size: 10px; color: #888; margin-top: 4px; text-align: right; }
 
-/* ✅ OPCIONES Y BARRA DE ENVÍO — SIEMPRE VISIBLES */
+/* OPCIONES Y BARRA DE ENVÍO */
 .opciones-envio {
   display: none; position: absolute; bottom: 70px; left: 10px; right: 10px;
   background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
@@ -107,6 +110,25 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 .barra-envio .enviar { background: #2563eb; border-radius: 50%; padding: 8px; }
 .barra-envio .enviar svg { fill: #fff; }
 
+/* VISOR PANTALLA COMPLETA */
+.visor-completo {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.95); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.visor-completo.oculto { display: none; }
+.cerrar-visor {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,0.2); border: none;
+  border-radius: 50%; width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.cerrar-visor svg { width: 24px; height: 24px; fill: #fff; }
+#contenidoVisor img, #contenidoVisor video {
+  max-width: 100%; max-height: 85vh; border-radius: 8px;
+}
+
 /* LLAMADAS */
 .contenedor-llamada {
   display: flex; flex-direction: column; align-items: center;
@@ -124,3 +146,10 @@ body { background: #f5f5f5; color: #000; min-height: 100vh; }
 .item-llamada { padding: 12px; border-bottom: 1px solid #eee; }
 .llamada-entrante { border-left: 3px solid #16a34a; }
 .llamada-saliente { border-left: 3px solid #2563eb; }
+
+/* Efecto pulsación */
+button, .item-chat, .item-contacto {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s, background 0.1s;
+}
+button:active { transform: scale(0.97); }
