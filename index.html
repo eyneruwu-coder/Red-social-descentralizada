@@ -2,69 +2,136 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Red Descentralizada</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Codex</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Red Descentralizada</h1>
-  
-  <!-- IDENTIDAD -->
-  <div class="seccion">
-    <label>Tu número de identificación:</label>
-    <input type="text" id="miIdentificador" placeholder="Ej: 0987654321">
-    <button id="conectarBtn">Activar identidad</button>
-    <p class="info">Estado: <span id="estadoConexion" class="resaltado">—</span></p>
-    <p class="ayuda" id="avisoAuto">🔄 Conectando automáticamente...</p>
-  </div>
+  <!-- BARRA SUPERIOR -->
+  <header class="barra-superior">
+    <div class="logo-codex">Codex</div>
+    <button class="icono-btn" id="btnBuscar">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    </button>
+  </header>
 
-  <!-- CONECTAR CON OTRO -->
-  <div class="seccion">
-    <label>Conectar con:</label>
-    <input type="text" id="idDestino" placeholder="Escribe su número">
-    <button id="enlazarBtn">Conectar</button>
-  </div>
+  <!-- PANTALLA PRINCIPAL -->
+  <main id="pantallaPrincipal" class="pantalla activa">
+    <!-- ESTADO CONEXIÓN -->
+    <div class="seccion-estado">
+      <p class="etiqueta">Tu número:</p>
+      <div class="fila-numero">
+        <input type="text" id="miNumero" placeholder="Tu número asignado" readonly>
+        <button id="btnConectar" class="btn-primario">Conectar</button>
+      </div>
+      <p id="estadoConexion" class="estado-texto">Desconectado</p>
+    </div>
 
-  <!-- LLAMADAS -->
-  <div class="seccion">
-    <h3>Llamadas</h3>
-    <button id="llamarBtn" disabled>📞 Llamar al contacto</button>
-    <div id="llamadaEnCurso" class="oculto">
+    <!-- PESTAÑAS -->
+    <div class="contenedor-pestanas">
+      <button class="pestana activa" data-pestana="chats">Mensajes</button>
+      <button class="pestana" data-pestana="usuarios">Usuarios</button>
+      <button class="pestana" data-pestana="llamadas">Llamadas</button>
+    </div>
+
+    <!-- LISTA CHATS -->
+    <div class="vista-pestana activa" id="vista-chats">
+      <div id="listaChats"></div>
+      <p id="sinChats" class="texto-vacio">No tienes conversaciones.<br>Ve a "Usuarios" para empezar.</p>
+    </div>
+
+    <!-- AGREGAR USUARIO -->
+    <div class="vista-pestana" id="vista-usuarios">
+      <div class="seccion-agregar">
+        <label>Agregar por número:</label>
+        <div class="fila-input">
+          <input type="text" id="numeroDestino" placeholder="Escribe el número">
+          <button id="btnAgregarUsuario" class="btn-primario">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          </button>
+        </div>
+      </div>
+      <h4>Contactos:</h4>
+      <div id="listaContactos"></div>
+    </div>
+
+    <!-- HISTORIAL LLAMADAS -->
+    <div class="vista-pestana" id="vista-llamadas">
+      <div id="listaLlamadas"></div>
+      <p id="sinLlamadas" class="texto-vacio">Sin llamadas recientes.</p>
+    </div>
+  </main>
+
+  <!-- VISTA DE CHAT INDIVIDUAL -->
+  <aside id="pantallaChat" class="pantalla">
+    <header class="cabecera-chat">
+      <button class="icono-btn" id="btnVolver">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="nombre-contacto" id="nombreChat"></div>
+      <button class="icono-btn" id="btnLlamar">
+        <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+      </button>
+    </header>
+
+    <div class="caja-mensajes" id="cajaMensajes"></div>
+
+    <!-- OPCIONES ADICIONALES DESPLEGABLES -->
+    <div class="opciones-envio" id="menuOpciones">
+      <button class="opcion-envio" data-tipo="imagen">
+        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <span>Imagen</span>
+      </button>
+      <button class="opcion-envio" data-tipo="video">
+        <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zM9 13l3-4 3 4H9zm5-1l-1.5-2L14 9l1.5 2H14z"/></svg>
+        <span>Video</span>
+      </button>
+      <button class="opcion-envio" data-tipo="audio">
+        <svg viewBox="0 0 24 24"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
+        <span>Audio</span>
+      </button>
+    </div>
+
+    <div class="barra-envio">
+      <button class="icono-btn" id="btnOpciones">
+        <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <input type="text" id="inputMensaje" placeholder="Escribe un mensaje...">
+      <button class="icono-btn enviar" id="btnEnviar">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- LLAMADA EN CURSO -->
+  <div id="pantallaLlamada" class="pantalla">
+    <div class="contenedor-llamada">
       <p id="estadoLlamada">Llamando...</p>
-      <button id="colgarBtn" class="colgar">📵 Colgar</button>
       <audio id="audioRemoto" autoplay playsinline>
+      <button id="btnColgar" class="btn-colgar">
+        <svg viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3zm6 6c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V9c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v6z"/></svg>
+      </button>
     </div>
-    <div id="llamadaEntrante" class="oculto">
+  </div>
+
+  <!-- LLAMADA ENTRANTE -->
+  <div id="pantallaLlamadaEntrante" class="pantalla">
+    <div class="contenedor-llamada">
       <p id="quienLlama">Te llama:</p>
-      <button id="responderBtn" class="llamada">✅ Responder</button>
-      <button id="rechazarBtn" class="colgar">❌ Rechazar</button>
+      <div class="botones-llamada">
+        <button id="btnResponder" class="btn-responder">
+          <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        </button>
+        <button id="btnRechazar" class="btn-colgar">
+          <svg viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3zm6 6c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V9c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v6z"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- ESTADO DE LA RED -->
-  <div class="seccion">
-    <h3>Conectados: <span id="contador">0</span></h3>
-    <ul id="listaConectados"></ul>
-    <p id="pendientesInfo" class="ayuda"></p>
-  </div>
-
-  <!-- CHAT -->
-  <div class="seccion">
-    <textarea id="mensajeInput" placeholder="Escribe un mensaje..."></textarea>
-    <button id="publicarBtn">Enviar</button>
-    
-    <div class="audio-zona">
-      <button id="grabarBtn">🎙️ Grabar nota</button>
-      <button id="detenerBtn" disabled>⏹️ Detener</button>
-      <button id="enviarAudioBtn" disabled>📤 Enviar audio</button>
-    </div>
-  </div>
-
-  <div class="seccion">
-    <h3>Historial:</h3>
-    <div id="muro"></div>
-  </div>
-
+  <!-- INPUTS OCULTOS PARA ARCHIVOS -->
+  <input type="file" id="inputImagen" accept="image/*" class="oculto">
+  <input type="file" id="inputVideo" accept="video/*" class="oculto">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="app.js"></script>
 </body>
