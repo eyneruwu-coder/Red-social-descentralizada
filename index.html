@@ -9,13 +9,13 @@
 <body>
   <h1>Red Descentralizada</h1>
   
-  <!-- IDENTIDAD PERMANENTE -->
+  <!-- IDENTIDAD -->
   <div class="seccion">
     <label>Tu número de identificación:</label>
     <input type="text" id="miIdentificador" placeholder="Ej: 0987654321">
     <button id="conectarBtn">Activar identidad</button>
-    <p class="info">Activo: <span id="tuId" class="resaltado">—</span></p>
-    <p class="ayuda">Tu número se guarda automáticamente, no tendrás que escribirlo de nuevo</p>
+    <p class="info">Estado: <span id="estadoConexion" class="resaltado">—</span></p>
+    <p class="ayuda" id="avisoAuto">🔄 Conectando automáticamente...</p>
   </div>
 
   <!-- CONECTAR CON OTRO -->
@@ -23,7 +23,6 @@
     <label>Conectar con:</label>
     <input type="text" id="idDestino" placeholder="Escribe su número">
     <button id="enlazarBtn">Conectar</button>
-    <div id="estadoConexion"></div>
   </div>
 
   <!-- LLAMADAS -->
@@ -32,23 +31,24 @@
     <button id="llamarBtn" disabled>📞 Llamar al contacto</button>
     <div id="llamadaEnCurso" class="oculto">
       <p id="estadoLlamada">Llamando...</p>
-      <button id="colgarBtn">📵 Colgar</button>
+      <button id="colgarBtn" class="colgar">📵 Colgar</button>
       <audio id="audioRemoto" autoplay playsinline>
     </div>
     <div id="llamadaEntrante" class="oculto">
-      <p id="quienLlama"></p>
-      <button id="responderBtn">✅ Responder</button>
-      <button id="rechazarBtn">❌ Rechazar</button>
+      <p id="quienLlama">Te llama:</p>
+      <button id="responderBtn" class="llamada">✅ Responder</button>
+      <button id="rechazarBtn" class="colgar">❌ Rechazar</button>
     </div>
   </div>
 
-  <!-- CHAT -->
+  <!-- ESTADO DE LA RED -->
   <div class="seccion">
     <h3>Conectados: <span id="contador">0</span></h3>
     <ul id="listaConectados"></ul>
     <p id="pendientesInfo" class="ayuda"></p>
   </div>
 
+  <!-- CHAT -->
   <div class="seccion">
     <textarea id="mensajeInput" placeholder="Escribe un mensaje..."></textarea>
     <button id="publicarBtn">Enviar</button>
